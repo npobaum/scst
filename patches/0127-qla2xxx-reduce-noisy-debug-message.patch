@@ -1,0 +1,26 @@
+From: Quinn Tran <qutran@marvell.com>
+
+Update debug level and message for ELS IOCB done.
+
+Signed-off-by: Quinn Tran <qutran@marvell.com>
+Signed-off-by: Nilesh Javali <njavali@marvell.com>
+Reviewed-by: Himanshu Madhani <himanshu.madhani@oracle.com>
+---
+ qla2x00t-32gbit/qla_isr.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+Index: scst-3.4.x/qla2x00t-32gbit/qla_isr.c
+===================================================================
+--- scst-3.4.x.orig/qla2x00t-32gbit/qla_isr.c
++++ scst-3.4.x/qla2x00t-32gbit/qla_isr.c
+@@ -1651,8 +1651,8 @@ qla24xx_els_ct_entry(scsi_qla_host_t *vh
+ 				res = DID_ERROR << 16;
+ 			}
+ 		}
+-		ql_dbg(ql_dbg_user, vha, 0x503f,
+-		    "ELS IOCB Done -%s error hdl=%x comp_status=0x%x error subcode 1=0x%x error subcode 2=0x%x total_byte=0x%x\n",
++		ql_dbg(ql_dbg_disc, vha, 0x503f,
++		    "ELS IOCB Done -%s hdl=%x comp_status=0x%x error subcode 1=0x%x error subcode 2=0x%x total_byte=0x%x\n",
+ 		    type, sp->handle, comp_status, fw_status[1], fw_status[2],
+ 		    le16_to_cpu(((struct els_sts_entry_24xx *)
+ 			pkt)->total_byte_count));

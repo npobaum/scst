@@ -1,0 +1,36 @@
+From c22a2d11b1ef3038561cb569467a9345fbeaf08e Mon Sep 17 00:00:00 2001
+From: Bart Van Assche <bvanassche@acm.org>
+Date: Sun, 2 Aug 2020 22:54:39 +0000
+Subject: [PATCH] iscsi-scst: Fix the CONFIG_IPV6=n build
+
+See also https://github.com/bvanassche/scst/issues/23.
+
+
+git-svn-id: http://svn.code.sf.net/p/scst/svn/trunk@9095 d57e44dd-8a1f-0410-8b47-8ef2f437770f
+---
+ iscsi-scst/kernel/conn.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/iscsi-scst/kernel/conn.c b/iscsi-scst/kernel/conn.c
+index 640da52e..a0bc0437 100644
+--- a/iscsi-scst/kernel/conn.c
++++ b/iscsi-scst/kernel/conn.c
+@@ -138,6 +138,7 @@ static ssize_t iscsi_get_target_ip(struct iscsi_conn *conn,
+ 			"%pI4", &inet_sk(sk)->inet_saddr);
+ #endif
+ 		break;
++#ifdef CONFIG_IPV6
+ 	case AF_INET6:
+ #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 29)
+ 		pos = scnprintf(buf, size,
+@@ -151,6 +152,7 @@ static ssize_t iscsi_get_target_ip(struct iscsi_conn *conn,
+ #endif
+ #endif
+ 		break;
++#endif
+ 	default:
+ 		pos = scnprintf(buf, size, "Unknown family %d",
+ 			sk->sk_family);
+-- 
+2.26.2
+

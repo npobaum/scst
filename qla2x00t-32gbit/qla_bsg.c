@@ -32,6 +32,14 @@ static inline void bsg_job_done_backport(struct fc_bsg_job *job, int result,
 #define bsg_job_done bsg_job_done_backport
 #endif
 
+static void qla2xxx_free_fcport_work(struct work_struct *work)
+{
+	struct fc_port *fcport = container_of(work, typeof(*fcport),
+	    free_work);
+
+	qla2x00_free_fcport(fcport);
+}
+
 /* BSG support for ELS/CT pass through */
 void qla2x00_bsg_job_done(srb_t *sp, int res)
 {
@@ -82,8 +90,11 @@ void qla2x00_bsg_sp_free(srb_t *sp)
 
 	if (sp->type == SRB_CT_CMD ||
 	    sp->type == SRB_FXIOCB_BCMD ||
-	    sp->type == SRB_ELS_CMD_HST)
-		kfree(sp->fcport);
+	    sp->type == SRB_ELS_CMD_HST) {
+		INIT_WORK(&sp->fcport->free_work, qla2xxx_free_fcport_work);
+		queue_work(ha->wq, &sp->fcport->free_work);
+	}
+
 	qla2x00_rel_sp(sp);
 }
 
@@ -444,7 +455,7 @@ done_unmap_sg:
 
 done_free_fcport:
 	if (bsg_request->msgcode == FC_BSG_RPT_ELS)
-		kfree(fcport);
+		qla2x00_free_fcport(fcport);
 done:
 	return rval;
 }
@@ -589,7 +600,7 @@ qla2x00_process_ct(struct bsg_job *bsg_job)
 	return rval;
 
 done_free_fcport:
-	kfree(fcport);
+	qla2x00_free_fcport(fcport);
 done_unmap_sg:
 	dma_unmap_sg(&ha->pdev->dev, bsg_job->request_payload.sg_list,
 		bsg_job->request_payload.sg_cnt, DMA_TO_DEVICE);
@@ -2169,7 +2180,7 @@ qlafx00_mgmt_cmd(struct bsg_job *bsg_job)
 	return rval;
 
 done_free_fcport:
-	kfree(fcport);
+	qla2x00_free_fcport(fcport);
 
 done_unmap_rsp_sg:
 	if (piocb_rqst->flags & SRB_FXDISC_RESP_DMA_VALID)
@@ -2559,7 +2570,7 @@ qla2x00_get_flash_image_status(struct bsg_job *bsg_job)
 	struct qla_active_regions regions = { };
 	struct active_regions active_regions = { };
 
-	qla28xx_get_aux_images(vha, &active_regions);
+	qla27xx_get_active_image(vha, &active_regions);
 	regions.global_image = active_regions.global;
 
 	if (IS_QLA28XX(ha)) {

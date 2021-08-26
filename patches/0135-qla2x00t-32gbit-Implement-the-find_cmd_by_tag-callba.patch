@@ -1,0 +1,56 @@
+From 2aed2394ef577c17a51ceb4b7670e89034ebeadf Mon Sep 17 00:00:00 2001
+From: Bart Van Assche <bvanassche@acm.org>
+Date: Fri, 1 Jan 2021 04:00:13 +0000
+Subject: [PATCH] qla2x00t-32gbit: Implement the find_cmd_by_tag() callback
+
+Fixes: ab09b4f3c3f3 ("qla2x00t-32gbit: Drop TARGET_SCF_LOOKUP_LUN_FROM_TAG")
+
+
+
+git-svn-id: http://svn.code.sf.net/p/scst/svn/trunk@9309 d57e44dd-8a1f-0410-8b47-8ef2f437770f
+---
+ qla2x00t-32gbit/qla2x00-target/scst_qla2xxx.c | 21 +++++++++++++++++++
+ 1 file changed, 21 insertions(+)
+
+diff --git a/qla2x00t-32gbit/qla2x00-target/scst_qla2xxx.c b/qla2x00t-32gbit/qla2x00-target/scst_qla2xxx.c
+index de20da80..ac621ad8 100644
+--- a/qla2x00t-32gbit/qla2x00-target/scst_qla2xxx.c
++++ b/qla2x00t-32gbit/qla2x00-target/scst_qla2xxx.c
+@@ -667,6 +667,26 @@ done:
+ 	return res;
+ }
+ 
++static struct qla_tgt_cmd *
++sqa_qla2xxx_find_cmd_by_tag(struct fc_port *fcport, uint64_t tag)
++{
++	struct scst_session *sess = fcport->se_sess->fabric_sess_ptr;
++	struct qla_tgt_cmd *qla_cmd = NULL;
++	struct scst_cmd *cmd;
++	unsigned long flags;
++
++	spin_lock_irqsave(&sess->sess_list_lock, flags);
++	list_for_each_entry(cmd, &sess->sess_cmd_list, sess_cmd_list_entry) {
++		if (cmd->tag == tag) {
++			qla_cmd = scst_cmd_get_tgt_priv(cmd);
++			break;
++		}
++	}
++	spin_unlock_irqrestore(&sess->sess_list_lock, flags);
++
++	return qla_cmd;
++}
++
+ static void sqa_qla2xxx_free_cmd(struct qla_tgt_cmd *cmd)
+ {
+ 	struct scst_cmd *scst_cmd = cmd->scst_cmd;
+@@ -1859,6 +1879,7 @@ static struct qla_tgt_func_tmpl sqa_qla2xxx_template = {
+ 	.handle_cmd		    = sqa_qla2xxx_handle_cmd,
+ 	.handle_data		    = sqa_qla2xxx_handle_data,
+ 	.handle_tmr		    = sqa_qla2xxx_handle_tmr,
++	.find_cmd_by_tag	    = sqa_qla2xxx_find_cmd_by_tag,
+ 	.get_cmd		    = sqa_qla2xxx_get_cmd,
+ 	.rel_cmd		    = sqa_qla2xxx_rel_cmd,
+ 	.free_cmd		    = sqa_qla2xxx_free_cmd,
+-- 
+2.26.3
+

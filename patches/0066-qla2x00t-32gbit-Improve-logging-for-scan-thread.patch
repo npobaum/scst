@@ -1,0 +1,98 @@
+From d7df645158d1478d4be01f82c94758f5642a20b8 Mon Sep 17 00:00:00 2001
+From: Bart Van Assche <bvanassche@acm.org>
+Date: Thu, 26 Dec 2019 00:19:24 +0000
+Subject: [PATCH] qla2x00t-32gbit: Improve logging for scan thread
+
+Move messages to verbose logging for scan thread.
+
+Link: https://lore.kernel.org/r/20190912180918.6436-14-hmadhani@marvell.com
+Signed-off-by: Himanshu Madhani <hmadhani@marvell.com>
+Signed-off-by: Martin K. Petersen <martin.petersen@oracle.com>
+
+
+git-svn-id: http://svn.code.sf.net/p/scst/svn/trunk@8709 d57e44dd-8a1f-0410-8b47-8ef2f437770f
+---
+ qla2x00t-32gbit/qla_gs.c | 22 ++++++++++++----------
+ 1 file changed, 12 insertions(+), 10 deletions(-)
+
+Index: scst-3.4.x/qla2x00t-32gbit/qla_gs.c
+===================================================================
+--- scst-3.4.x.orig/qla2x00t-32gbit/qla_gs.c
++++ scst-3.4.x/qla2x00t-32gbit/qla_gs.c
+@@ -3563,7 +3563,7 @@ void qla24xx_async_gnnft_done(scsi_qla_h
+ 	u8 recheck = 0;
+ 	u16 dup = 0, dup_cnt = 0;
+ 
+-	ql_dbg(ql_dbg_disc, vha, 0xffff,
++	ql_dbg(ql_dbg_disc + ql_dbg_verbose, vha, 0xffff,
+ 	    "%s enter\n", __func__);
+ 
+ 	if (sp->gen1 != vha->hw->base_qpair->chip_reset) {
+@@ -3580,8 +3580,9 @@ void qla24xx_async_gnnft_done(scsi_qla_h
+ 			set_bit(LOCAL_LOOP_UPDATE, &vha->dpc_flags);
+ 			set_bit(LOOP_RESYNC_NEEDED, &vha->dpc_flags);
+ 		} else {
+-			ql_dbg(ql_dbg_disc, vha, 0xffff,
+-			    "Fabric scan failed on all retries.\n");
++			ql_dbg(ql_dbg_disc + ql_dbg_verbose, vha, 0xffff,
++			    "%s: Fabric scan failed for %d retries.\n",
++			    __func__, vha->scan.scan_retry);
+ 		}
+ 		goto out;
+ 	}
+@@ -4047,7 +4048,7 @@ done_free_sp:
+ 
+ void qla24xx_async_gpnft_done(scsi_qla_host_t *vha, srb_t *sp)
+ {
+-	ql_dbg(ql_dbg_disc, vha, 0xffff,
++	ql_dbg(ql_dbg_disc + ql_dbg_verbose, vha, 0xffff,
+ 	    "%s enter\n", __func__);
+ 	qla24xx_async_gnnft(vha, sp, sp->gen2);
+ }
+@@ -4061,7 +4062,7 @@ int qla24xx_async_gpnft(scsi_qla_host_t
+ 	u32 rspsz;
+ 	unsigned long flags;
+ 
+-	ql_dbg(ql_dbg_disc, vha, 0xffff,
++	ql_dbg(ql_dbg_disc + ql_dbg_verbose, vha, 0xffff,
+ 	    "%s enter\n", __func__);
+ 
+ 	if (!vha->flags.online)
+@@ -4070,14 +4071,15 @@ int qla24xx_async_gpnft(scsi_qla_host_t
+ 	spin_lock_irqsave(&vha->work_lock, flags);
+ 	if (vha->scan.scan_flags & SF_SCANNING) {
+ 		spin_unlock_irqrestore(&vha->work_lock, flags);
+-		ql_dbg(ql_dbg_disc, vha, 0xffff, "scan active\n");
++		ql_dbg(ql_dbg_disc + ql_dbg_verbose, vha, 0xffff,
++		    "%s: scan active\n", __func__);
+ 		return rval;
+ 	}
+ 	vha->scan.scan_flags |= SF_SCANNING;
+ 	spin_unlock_irqrestore(&vha->work_lock, flags);
+ 
+ 	if (fc4_type == FC4_TYPE_FCP_SCSI) {
+-		ql_dbg(ql_dbg_disc, vha, 0xffff,
++		ql_dbg(ql_dbg_disc + ql_dbg_verbose, vha, 0xffff,
+ 		    "%s: Performing FCP Scan\n", __func__);
+ 
+ 		if (sp)
+@@ -4132,7 +4134,7 @@ int qla24xx_async_gpnft(scsi_qla_host_t
+ 		}
+ 		sp->u.iocb_cmd.u.ctarg.rsp_size = rspsz;
+ 
+-		ql_dbg(ql_dbg_disc, vha, 0xffff,
++		ql_dbg(ql_dbg_disc + ql_dbg_verbose, vha, 0xffff,
+ 		    "%s scan list size %d\n", __func__, vha->scan.size);
+ 
+ 		memset(vha->scan.l, 0, vha->scan.size);
+@@ -4197,8 +4199,8 @@ done_free_sp:
+ 	spin_lock_irqsave(&vha->work_lock, flags);
+ 	vha->scan.scan_flags &= ~SF_SCANNING;
+ 	if (vha->scan.scan_flags == 0) {
+-		ql_dbg(ql_dbg_disc, vha, 0xffff,
+-		    "%s: schedule\n", __func__);
++		ql_dbg(ql_dbg_disc + ql_dbg_verbose, vha, 0xffff,
++		    "%s: Scan scheduled.\n", __func__);
+ 		vha->scan.scan_flags |= SF_QUEUED;
+ 		schedule_delayed_work(&vha->scan.scan_work, 5);
+ 	}

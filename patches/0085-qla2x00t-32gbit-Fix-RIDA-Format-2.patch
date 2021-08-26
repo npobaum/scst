@@ -1,0 +1,84 @@
+From 22c88c268627083eb007fd90ca641ed6ed8728b2 Mon Sep 17 00:00:00 2001
+From: Bart Van Assche <bvanassche@acm.org>
+Date: Thu, 26 Dec 2019 00:40:58 +0000
+Subject: [PATCH] qla2x00t-32gbit: Fix RIDA Format-2
+
+This patch fixes offset for Format-2 data structure for Report ID
+Acquisition. This caused driver to set remote_nport_id to 0x0000 in N2N
+configuration. In a scenario where initiator's WWPN is higher than target's
+WWPN, driver will assign 0x00 as target nport-id, which results into login
+failure.
+
+Link: https://lore.kernel.org/r/20191217220617.28084-12-hmadhani@marvell.com
+Signed-off-by: Quinn Tran <qutran@marvell.com>
+Signed-off-by: Himanshu Madhani <hmadhani@marvell.com>
+Signed-off-by: Martin K. Petersen <martin.petersen@oracle.com>
+
+[ commit 101346ec73d9376823e7471b719c2e8445aa3541 upstream ]
+
+
+git-svn-id: http://svn.code.sf.net/p/scst/svn/trunk@8752 d57e44dd-8a1f-0410-8b47-8ef2f437770f
+---
+ qla2x00t-32gbit/qla_fw.h | 35 ++++++++++++++++++-----------------
+ 1 file changed, 18 insertions(+), 17 deletions(-)
+
+diff --git a/qla2x00t-32gbit/qla_fw.h b/qla2x00t-32gbit/qla_fw.h
+index 2ea212e0..b4cc6de5 100644
+--- a/qla2x00t-32gbit/qla_fw.h
++++ b/qla2x00t-32gbit/qla_fw.h
+@@ -1366,12 +1366,12 @@ struct vp_rpt_id_entry_24xx {
+ 	uint8_t port_id[3];
+ 	uint8_t format;
+ 	union {
+-		struct {
++		struct _f0 {
+ 			/* format 0 loop */
+ 			uint8_t vp_idx_map[16];
+ 			uint8_t reserved_4[32];
+ 		} f0;
+-		struct {
++		struct _f1 {
+ 			/* format 1 fabric */
+ 			uint8_t vpstat1_subcode; /* vp_status=1 subcode */
+ 			uint8_t flags;
+@@ -1393,21 +1393,22 @@ struct vp_rpt_id_entry_24xx {
+ 			uint16_t bbcr;
+ 			uint8_t reserved_5[6];
+ 		} f1;
+-		struct { /* format 2: N2N direct connect */
+-		    uint8_t vpstat1_subcode;
+-		    uint8_t flags;
+-		    uint16_t rsv6;
+-		    uint8_t rsv2[12];
+-
+-		    uint8_t ls_rjt_vendor;
+-		    uint8_t ls_rjt_explanation;
+-		    uint8_t ls_rjt_reason;
+-		    uint8_t rsv3[5];
+-
+-		    uint8_t port_name[8];
+-		    uint8_t node_name[8];
+-		    uint8_t remote_nport_id[4];
+-		    uint32_t reserved_5;
++		struct _f2 { /* format 2: N2N direct connect */
++			uint8_t vpstat1_subcode;
++			uint8_t flags;
++			uint16_t fip_flags;
++			uint8_t rsv2[12];
++
++			uint8_t ls_rjt_vendor;
++			uint8_t ls_rjt_explanation;
++			uint8_t ls_rjt_reason;
++			uint8_t rsv3[5];
++
++			uint8_t port_name[8];
++			uint8_t node_name[8];
++			uint16_t bbcr;
++			uint8_t reserved_5[2];
++			uint8_t remote_nport_id[4];
+ 		} f2;
+ 	} u;
+ };
+-- 
+2.24.1
+

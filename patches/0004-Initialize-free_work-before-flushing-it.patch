@@ -1,0 +1,24 @@
+diff --git a/qla2x00t-32gbit/qla_init.c b/qla2x00t-32gbit/qla_init.c
+index d05a409c..c4ddf5b8 100644
+--- a/qla2x00t-32gbit/qla_init.c
++++ b/qla2x00t-32gbit/qla_init.c
+@@ -4829,6 +4829,7 @@ qla2x00_alloc_fcport(scsi_qla_host_t *vha, gfp_t flags)
+ 	}
+ 
+ 	INIT_WORK(&fcport->del_work, qla24xx_delete_sess_fn);
++	INIT_WORK(&fcport->free_work, qlt_free_session_done);
+ 	INIT_WORK(&fcport->reg_work, qla_register_fcport_fn);
+ 	INIT_LIST_HEAD(&fcport->gnl_entry);
+ 	INIT_LIST_HEAD(&fcport->list);
+diff --git a/qla2x00t-32gbit/qla_target.c b/qla2x00t-32gbit/qla_target.c
+index b8847d06..2916b230 100644
+--- a/qla2x00t-32gbit/qla_target.c
++++ b/qla2x00t-32gbit/qla_target.c
+@@ -1398,7 +1398,6 @@ static struct fc_port *qlt_create_sess(
+ 		}
+ 
+ 		INIT_WORK(&sess->del_work, qla24xx_delete_sess_fn);
+-		INIT_WORK(&sess->free_work, qlt_free_session_done);
+ 
+ 		spin_lock_irqsave(&ha->tgt.sess_lock, flags);
+ 		if (!IS_SW_RESV_ADDR(sess->d_id))

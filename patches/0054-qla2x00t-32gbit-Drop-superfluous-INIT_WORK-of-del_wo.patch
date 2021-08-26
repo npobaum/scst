@@ -1,0 +1,40 @@
+From 5c3f238b761e216b01166553dfe06db7901b380e Mon Sep 17 00:00:00 2001
+From: Bart Van Assche <bvanassche@acm.org>
+Date: Thu, 26 Dec 2019 00:30:45 +0000
+Subject: [PATCH] qla2x00t-32gbit: Drop superfluous INIT_WORK of del_work
+
+del_work is already initialized inside qla2x00_alloc_fcport, there's no
+need to overwrite it. Indeed, it might prevent complete traversal of
+workqueue list.
+
+Fixes: a01c77d2cbc45 ("scsi: qla2xxx: Move session delete to driver work queue")
+Cc: Quinn Tran <qutran@marvell.com>
+Link: https://lore.kernel.org/r/20191125165702.1013-5-r.bolshakov@yadro.com
+Acked-by: Himanshu Madhani <hmadhani@marvell.com>
+Reviewed-by: Hannes Reinecke <hare@suse.de>
+Tested-by: Hannes Reinecke <hare@suse.de>
+Reviewed-by: Bart Van Assche <bvanassche@acm.org>
+Signed-off-by: Roman Bolshakov <r.bolshakov@yadro.com>
+Signed-off-by: Martin K. Petersen <martin.petersen@oracle.com>
+
+[ commit 600954e6f2df695434887dfc6a99a098859990cf upstream ]
+
+
+git-svn-id: http://svn.code.sf.net/p/scst/svn/trunk@8732 d57e44dd-8a1f-0410-8b47-8ef2f437770f
+---
+ qla2x00t-32gbit/qla_target.c | 2 --
+ 1 file changed, 2 deletions(-)
+
+Index: scst-3.4.x/qla2x00t-32gbit/qla_target.c
+===================================================================
+--- scst-3.4.x.orig/qla2x00t-32gbit/qla_target.c
++++ scst-3.4.x/qla2x00t-32gbit/qla_target.c
+@@ -1397,8 +1397,6 @@ static struct fc_port *qlt_create_sess(
+ 			return NULL;
+ 		}
+ 
+-		INIT_WORK(&sess->del_work, qla24xx_delete_sess_fn);
+-
+ 		spin_lock_irqsave(&ha->tgt.sess_lock, flags);
+ 		if (!IS_SW_RESV_ADDR(sess->d_id))
+ 			vha->vha_tgt.qla_tgt->sess_count++;

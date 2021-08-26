@@ -1,0 +1,110 @@
+From: Martin Wilck <mwilck@suse.com>
+
+Since commit 45235022da99 ("scsi: qla2xxx: Fix driver unload by shutting down chip"),
+it is possible that FC commands are scheduled after the adapter firmware
+has been shut down. IO sent to the firmware in this situation hangs
+indefinitely. Avoid this for the LOGO code path that is typically taken
+when adapters are shut down.
+
+Fixes: 45235022da99 ("scsi: qla2xxx: Fix driver unload by shutting down chip")
+Signed-off-by: Martin Wilck <mwilck@suse.com>
+Reviewed-by: Roman Bolshakov <r.bolshakov@yadro.com>
+Reviewed-by: Daniel Wagner <dwagner@suse.de>
+---
+ qla2x00t-32gbit/qla_mbx.c | 3 +++
+ qla2x00t-32gbit/qla_os.c  | 3 +++
+ 2 files changed, 6 insertions(+)
+
+Index: scst-3.4.x/qla2x00t-32gbit/qla_mbx.c
+===================================================================
+--- scst-3.4.x.orig/qla2x00t-32gbit/qla_mbx.c
++++ scst-3.4.x/qla2x00t-32gbit/qla_mbx.c
+@@ -2644,6 +2644,9 @@ qla24xx_fabric_logout(scsi_qla_host_t *v
+ 	ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x106d,
+ 	    "Entered %s.\n", __func__);
+ 
++	if (!ha->flags.fw_started)
++		return QLA_FUNCTION_FAILED;
++
+ 	lg = dma_pool_zalloc(ha->s_dma_pool, GFP_KERNEL, &lg_dma);
+ 	if (lg == NULL) {
+ 		ql_log(ql_log_warn, vha, 0x106e,
+Index: scst-3.4.x/qla2x00t-32gbit/qla_os.c
+===================================================================
+--- scst-3.4.x.orig/qla2x00t-32gbit/qla_os.c
++++ scst-3.4.x/qla2x00t-32gbit/qla_os.c
+@@ -3740,6 +3740,15 @@ qla2x00_remove_one(struct pci_dev *pdev)
+ 	}
+ 	qla2x00_wait_for_hba_ready(base_vha);
+ 
++	/*
++	 * if UNLOADING flag is already set, then continue unload,
++	 * where it was set first.
++	 */
++	if (test_and_set_bit(UNLOADING, &base_vha->dpc_flags))
++		return;
++
++	qla2x00_wait_for_sess_deletion(base_vha);
++
+ 	if (IS_QLA25XX(ha) || IS_QLA2031(ha) || IS_QLA27XX(ha) ||
+ 	    IS_QLA28XX(ha)) {
+ 		if (ha->flags.fw_started)
+@@ -3756,17 +3765,6 @@ qla2x00_remove_one(struct pci_dev *pdev)
+ 		qla2x00_try_to_stop_firmware(base_vha);
+ 	}
+ 
+-	qla2x00_wait_for_sess_deletion(base_vha);
+-
+-	/*
+-	 * if UNLOAD flag is already set, then continue unload,
+-	 * where it was set first.
+-	 */
+-	if (test_bit(UNLOADING, &base_vha->dpc_flags))
+-		return;
+-
+-	set_bit(UNLOADING, &base_vha->dpc_flags);
+-
+ 	qla_nvme_delete(base_vha);
+ 
+ 	dma_free_coherent(&ha->pdev->dev,
+@@ -4920,6 +4918,9 @@ qla2x00_post_work(struct scsi_qla_host *
+ 	unsigned long flags;
+ 	bool q = false;
+ 
++	if (!vha->hw->flags.fw_started)
++		return QLA_FUNCTION_FAILED;
++
+ 	spin_lock_irqsave(&vha->work_lock, flags);
+ 	list_add_tail(&e->list, &vha->work_list);
+ 
+@@ -6096,13 +6097,6 @@ qla2x00_disable_board_on_pci_error(struc
+ 	struct pci_dev *pdev = ha->pdev;
+ 	scsi_qla_host_t *base_vha = pci_get_drvdata(ha->pdev);
+ 
+-	/*
+-	 * if UNLOAD flag is already set, then continue unload,
+-	 * where it was set first.
+-	 */
+-	if (test_bit(UNLOADING, &base_vha->dpc_flags))
+-		return;
+-
+ 	ql_log(ql_log_warn, base_vha, 0x015b,
+ 	    "Disabling adapter.\n");
+ 
+@@ -6113,9 +6107,14 @@ qla2x00_disable_board_on_pci_error(struc
+ 		return;
+ 	}
+ 
+-	qla2x00_wait_for_sess_deletion(base_vha);
++	/*
++	 * if UNLOADING flag is already set, then continue unload,
++	 * where it was set first.
++	 */
++	if (test_and_set_bit(UNLOADING, &base_vha->dpc_flags))
++		return;
+ 
+-	set_bit(UNLOADING, &base_vha->dpc_flags);
++	qla2x00_wait_for_sess_deletion(base_vha);
+ 
+ 	qla2x00_delete_all_vps(ha, base_vha);
+ 

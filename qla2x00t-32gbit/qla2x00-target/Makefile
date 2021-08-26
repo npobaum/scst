@@ -101,12 +101,14 @@ endif
 	$(MAKE) -C $(KDIR) M=$(shell pwd) BUILD_INI=m		\
 	  $$([ -n "$(DEPMOD)" ] && echo "DEPMOD=$(DEPMOD)")	\
 	  CONFIG_MODULE_SIG_ALL= modules_install
+	mv $(INSTALL_DIR)/qla2x00tgt.ko $(INSTALL_DIR)/scst_qla2xxx.ko
+	-/sbin/depmod -b $(INSTALL_MOD_PATH)/ -a $(KVER)
 
 uninstall:
 ifneq ($(BUILD_2X_MODULE),)
 	$(MAKE) M=$(QLA2XXX_DIR) -C $(QLA2XXX_DIR) $@
 endif
-	rm -f $(INSTALL_DIR)/qla2[23x]00tgt.ko
+	rm -f $(INSTALL_DIR)/*qla2xxx.ko
 	-/sbin/depmod -b $(INSTALL_MOD_PATH)/ -a $(KVER)
 
 ifneq ($(BUILD_2X_MODULE),)

@@ -1,0 +1,37 @@
+From b4a2b8a6475b144fa3564f6f91a5cd1df807f0fa Mon Sep 17 00:00:00 2001
+From: Bart Van Assche <bvanassche@acm.org>
+Date: Sat, 7 Mar 2020 21:38:56 +0000
+Subject: [PATCH] qla2x00t-32gbit: Remove restriction of FC T10-PI and FC-NVMe
+
+T10-PI and FC-NVMe are not mutually exclusive. This patch removes
+restrictions where if FC-NVMe is enabled T10-PI defaults to disabled.
+
+Link: https://lore.kernel.org/r/20200226224022.24518-16-hmadhani@marvell.com
+Signed-off-by: Himanshu Madhani <hmadhani@marvell.com>
+Signed-off-by: Quinn Tran <qutran@marvell.com>
+Signed-off-by: Martin K. Petersen <martin.petersen@oracle.com>
+
+[ commit 3e4615a292b47632d409f0d53a23da85e039b031 upstream ]
+
+
+git-svn-id: http://svn.code.sf.net/p/scst/svn/trunk@8829 d57e44dd-8a1f-0410-8b47-8ef2f437770f
+---
+ qla2x00t-32gbit/qla_os.c | 4 ----
+ 1 file changed, 4 deletions(-)
+
+Index: scst-3.4.x/qla2x00t-32gbit/qla_os.c
+===================================================================
+--- scst-3.4.x.orig/qla2x00t-32gbit/qla_os.c
++++ scst-3.4.x/qla2x00t-32gbit/qla_os.c
+@@ -135,11 +135,7 @@ MODULE_PARM_DESC(ql2xmaxqdepth,
+ 		"Maximum queue depth to set for each LUN. "
+ 		"Default is 64.");
+ 
+-#if (IS_ENABLED(CONFIG_NVME_FC))
+-int ql2xenabledif;
+-#else
+ int ql2xenabledif = 2;
+-#endif
+ module_param(ql2xenabledif, int, S_IRUGO);
+ MODULE_PARM_DESC(ql2xenabledif,
+ 		" Enable T10-CRC-DIF:\n"

@@ -1,0 +1,101 @@
+From b7ce0c846073b18c0bbc62b7a7d077c0be4f8407 Mon Sep 17 00:00:00 2001
+From: Bart Van Assche <bvanassche@acm.org>
+Date: Thu, 26 Dec 2019 00:38:04 +0000
+Subject: [PATCH] qla2x00t-32gbit: Cleanup unused async_logout_done
+
+This patch removes unused qla2x00_async_logout_done from the code.
+
+Link: https://lore.kernel.org/r/20191217220617.28084-5-hmadhani@marvell.com
+Signed-off-by: Shyam Sundar <ssundar@marvell.com>
+Signed-off-by: Himanshu Madhani <hmadhani@marvell.com>
+Signed-off-by: Martin K. Petersen <martin.petersen@oracle.com>
+
+[ commit 96a0eb7164d125100ac692c7efeb6e70a7585042 upstream ]
+
+
+git-svn-id: http://svn.code.sf.net/p/scst/svn/trunk@8745 d57e44dd-8a1f-0410-8b47-8ef2f437770f
+---
+ qla2x00t-32gbit/qla_def.h  |  1 -
+ qla2x00t-32gbit/qla_gbl.h  |  4 ----
+ qla2x00t-32gbit/qla_init.c | 10 ----------
+ qla2x00t-32gbit/qla_os.c   |  5 -----
+ 4 files changed, 20 deletions(-)
+
+Index: scst-3.4.x/qla2x00t-32gbit/qla_def.h
+===================================================================
+--- scst-3.4.x.orig/qla2x00t-32gbit/qla_def.h
++++ scst-3.4.x/qla2x00t-32gbit/qla_def.h
+@@ -3285,7 +3285,6 @@ enum qla_work_type {
+ 	QLA_EVT_IDC_ACK,
+ 	QLA_EVT_ASYNC_LOGIN,
+ 	QLA_EVT_ASYNC_LOGOUT,
+-	QLA_EVT_ASYNC_LOGOUT_DONE,
+ 	QLA_EVT_ASYNC_ADISC,
+ 	QLA_EVT_UEVENT,
+ 	QLA_EVT_AENFX,
+Index: scst-3.4.x/qla2x00t-32gbit/qla_gbl.h
+===================================================================
+--- scst-3.4.x.orig/qla2x00t-32gbit/qla_gbl.h
++++ scst-3.4.x/qla2x00t-32gbit/qla_gbl.h
+@@ -72,8 +72,6 @@ extern int qla2x00_async_adisc(struct sc
+ extern int qla2x00_async_tm_cmd(fc_port_t *, uint32_t, uint32_t, uint32_t);
+ extern void qla2x00_async_login_done(struct scsi_qla_host *, fc_port_t *,
+     uint16_t *);
+-extern void qla2x00_async_logout_done(struct scsi_qla_host *, fc_port_t *,
+-    uint16_t *);
+ struct qla_work_evt *qla2x00_alloc_work(struct scsi_qla_host *,
+     enum qla_work_type);
+ extern int qla24xx_async_gnl(struct scsi_qla_host *, fc_port_t *);
+@@ -186,8 +184,6 @@ extern int qla2x00_post_async_login_work
+     uint16_t *);
+ extern int qla2x00_post_async_logout_work(struct scsi_qla_host *, fc_port_t *,
+     uint16_t *);
+-extern int qla2x00_post_async_logout_done_work(struct scsi_qla_host *,
+-    fc_port_t *, uint16_t *);
+ extern int qla2x00_post_async_adisc_work(struct scsi_qla_host *, fc_port_t *,
+     uint16_t *);
+ extern int qla2x00_post_async_adisc_done_work(struct scsi_qla_host *,
+Index: scst-3.4.x/qla2x00t-32gbit/qla_init.c
+===================================================================
+--- scst-3.4.x.orig/qla2x00t-32gbit/qla_init.c
++++ scst-3.4.x/qla2x00t-32gbit/qla_init.c
+@@ -2071,16 +2071,6 @@ qla24xx_handle_plogi_done_event(struct s
+ 	return;
+ }
+ 
+-void
+-qla2x00_async_logout_done(struct scsi_qla_host *vha, fc_port_t *fcport,
+-    uint16_t *data)
+-{
+-	qlt_logo_completion_handler(fcport, data[0]);
+-	fcport->login_gen++;
+-	fcport->flags &= ~FCF_ASYNC_ACTIVE;
+-	return;
+-}
+-
+ /****************************************************************************/
+ /*                QLogic ISP2x00 Hardware Support Functions.                */
+ /****************************************************************************/
+Index: scst-3.4.x/qla2x00t-32gbit/qla_os.c
+===================================================================
+--- scst-3.4.x.orig/qla2x00t-32gbit/qla_os.c
++++ scst-3.4.x/qla2x00t-32gbit/qla_os.c
+@@ -4986,7 +4986,6 @@ int qla2x00_post_async_##name##_work(		\
+ 
+ qla2x00_post_async_work(login, QLA_EVT_ASYNC_LOGIN);
+ qla2x00_post_async_work(logout, QLA_EVT_ASYNC_LOGOUT);
+-qla2x00_post_async_work(logout_done, QLA_EVT_ASYNC_LOGOUT_DONE);
+ qla2x00_post_async_work(adisc, QLA_EVT_ASYNC_ADISC);
+ qla2x00_post_async_work(prlo, QLA_EVT_ASYNC_PRLO);
+ qla2x00_post_async_work(prlo_done, QLA_EVT_ASYNC_PRLO_DONE);
+@@ -5279,10 +5278,6 @@ qla2x00_do_work(struct scsi_qla_host *vh
+ 		case QLA_EVT_ASYNC_LOGOUT:
+ 			rc = qla2x00_async_logout(vha, e->u.logio.fcport);
+ 			break;
+-		case QLA_EVT_ASYNC_LOGOUT_DONE:
+-			qla2x00_async_logout_done(vha, e->u.logio.fcport,
+-			    e->u.logio.data);
+-			break;
+ 		case QLA_EVT_ASYNC_ADISC:
+ 			qla2x00_async_adisc(vha, e->u.logio.fcport,
+ 			    e->u.logio.data);

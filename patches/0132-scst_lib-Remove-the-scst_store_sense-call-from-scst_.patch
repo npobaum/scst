@@ -1,0 +1,31 @@
+From ae72c4193b8373cc22deefb02a6ef5d9dbfbdb2d Mon Sep 17 00:00:00 2001
+From: Bart Van Assche <bvanassche@acm.org>
+Date: Sun, 28 Feb 2021 03:40:05 +0000
+Subject: [PATCH] scst_lib: Remove the scst_store_sense() call from
+ scst_process_check_condition()
+
+This patch fixes an inifinite loop. See also
+https://sourceforge.net/p/scst/tickets/49/.
+
+
+git-svn-id: http://svn.code.sf.net/p/scst/svn/trunk@9346 d57e44dd-8a1f-0410-8b47-8ef2f437770f
+---
+ scst/src/scst_lib.c | 2 --
+ 1 file changed, 2 deletions(-)
+
+diff --git a/scst/src/scst_lib.c b/scst/src/scst_lib.c
+index f8c21df5..30a86be3 100644
+--- a/scst/src/scst_lib.c
++++ b/scst/src/scst_lib.c
+@@ -14131,8 +14131,6 @@ int scst_process_check_condition(struct scst_cmd *cmd)
+ process_qerr:
+ 	scst_process_qerr(cmd);
+ 
+-	scst_store_sense(cmd);
+-
+ 	res = 0;
+ 
+ out:
+-- 
+2.26.3
+

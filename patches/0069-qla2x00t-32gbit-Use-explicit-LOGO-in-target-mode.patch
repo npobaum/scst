@@ -1,0 +1,100 @@
+From 5bab3ecb99d7014e66dc4e1cd70d79e2293b2899 Mon Sep 17 00:00:00 2001
+From: Bart Van Assche <bvanassche@acm.org>
+Date: Thu, 26 Dec 2019 00:29:20 +0000
+Subject: [PATCH] qla2x00t-32gbit: Use explicit LOGO in target mode
+
+Target makes implicit LOGO on session teardown. LOGO ELS is not send on the
+wire and initiator is not aware that target no longer wants talking to
+it. Initiator keeps sending I/O requests, target responds with BA_RJT, they
+time out and then initiator sends ABORT TASK (ABTS-LS).
+
+Current behaviour incurs unneeded I/O timeout and can be fixed for some
+initiators by making explicit LOGO on session deletion.
+
+Link: https://lore.kernel.org/r/20191125165702.1013-3-r.bolshakov@yadro.com
+Reviewed-by: Hannes Reinecke <hare@suse.de>
+Tested-by: Hannes Reinecke <hare@suse.de>
+Signed-off-by: Quinn Tran <qutran@marvell.com>
+Signed-off-by: Himanshu Madhani <hmadhani@marvell.com>
+Signed-off-by: Roman Bolshakov <r.bolshakov@yadro.com>
+Signed-off-by: Martin K. Petersen <martin.petersen@oracle.com>
+
+[ commit 86196a8fa8a84af1395a28ea0548f2ce6ae9bc22 upstream ]
+
+
+git-svn-id: http://svn.code.sf.net/p/scst/svn/trunk@8730 d57e44dd-8a1f-0410-8b47-8ef2f437770f
+---
+ qla2x00t-32gbit/qla2x00-target/scst_qla2xxx.c |  2 ++
+ qla2x00t-32gbit/qla_def.h                     |  1 +
+ qla2x00t-32gbit/qla_iocb.c                    | 16 ++++++++++++----
+ qla2x00t-32gbit/qla_target.c                  |  1 +
+ 4 files changed, 16 insertions(+), 4 deletions(-)
+
+diff --git a/qla2x00t-32gbit/qla2x00-target/scst_qla2xxx.c b/qla2x00t-32gbit/qla2x00-target/scst_qla2xxx.c
+index c65ea0f4..9347c294 100644
+--- a/qla2x00t-32gbit/qla2x00-target/scst_qla2xxx.c
++++ b/qla2x00t-32gbit/qla2x00-target/scst_qla2xxx.c
+@@ -870,6 +870,8 @@ static int sqa_close_session(struct scst_session *scst_sess)
+ 	unsigned long flags;
+ 	struct qla_hw_data *ha = fcport->vha->hw;
+ 
++	fcport->explicit_logout = 1;
++
+ 	spin_lock_irqsave(&ha->tgt.sess_lock, flags);
+ 	sqa_qla2xxx_put_sess(fcport);
+ 	spin_unlock_irqrestore(&ha->tgt.sess_lock, flags);
+diff --git a/qla2x00t-32gbit/qla_def.h b/qla2x00t-32gbit/qla_def.h
+index 7d8630ce..b817847b 100644
+--- a/qla2x00t-32gbit/qla_def.h
++++ b/qla2x00t-32gbit/qla_def.h
+@@ -2427,6 +2427,7 @@ typedef struct fc_port {
+ 	unsigned int id_changed:1;
+ 	unsigned int scan_needed:1;
+ 	unsigned int n2n_flag:1;
++	unsigned int explicit_logout:1;
+ 
+ 	struct completion nvme_del_done;
+ 	uint32_t nvme_prli_service_param;
+diff --git a/qla2x00t-32gbit/qla_iocb.c b/qla2x00t-32gbit/qla_iocb.c
+index 07caa095..54b5392f 100644
+--- a/qla2x00t-32gbit/qla_iocb.c
++++ b/qla2x00t-32gbit/qla_iocb.c
+@@ -2411,11 +2411,19 @@ qla2x00_login_iocb(srb_t *sp, struct mbx_entry *mbx)
+ static void
+ qla24xx_logout_iocb(srb_t *sp, struct logio_entry_24xx *logio)
+ {
++	u16 control_flags = LCF_COMMAND_LOGO;
+ 	logio->entry_type = LOGINOUT_PORT_IOCB_TYPE;
+-	logio->control_flags =
+-	    cpu_to_le16(LCF_COMMAND_LOGO|LCF_IMPL_LOGO);
+-	if (!sp->fcport->keep_nport_handle)
+-		logio->control_flags |= cpu_to_le16(LCF_FREE_NPORT);
++
++	if (sp->fcport->explicit_logout) {
++		control_flags |= LCF_EXPL_LOGO|LCF_FREE_NPORT;
++	} else {
++		control_flags |= LCF_IMPL_LOGO;
++
++		if (!sp->fcport->keep_nport_handle)
++			control_flags |= LCF_FREE_NPORT;
++	}
++
++	logio->control_flags = cpu_to_le16(control_flags);
+ 	logio->nport_handle = cpu_to_le16(sp->fcport->loop_id);
+ 	logio->port_id[0] = sp->fcport->d_id.b.al_pa;
+ 	logio->port_id[1] = sp->fcport->d_id.b.area;
+diff --git a/qla2x00t-32gbit/qla_target.c b/qla2x00t-32gbit/qla_target.c
+index 099c0de6..43e9191a 100644
+--- a/qla2x00t-32gbit/qla_target.c
++++ b/qla2x00t-32gbit/qla_target.c
+@@ -1117,6 +1117,7 @@ void qlt_free_session_done(struct work_struct *work)
+ 		}
+ 	}
+ 
++	sess->explicit_logout = 0;
+ 	spin_unlock_irqrestore(&ha->tgt.sess_lock, flags);
+ 	sess->free_pending = 0;
+ 
+-- 
+2.24.1
+

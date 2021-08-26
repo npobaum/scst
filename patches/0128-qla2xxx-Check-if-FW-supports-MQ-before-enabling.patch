@@ -1,0 +1,29 @@
+From: Saurav Kashyap <skashyap@marvell.com>
+
+OS boot during Boot from SAN was stuck at dracut emergency shell
+after enabling nvme driver parameter. For non MQ support the driver
+was enabling MQ. Add a check to confirm if FW supports MQ.
+
+Signed-off-by: Saurav Kashyap <skashyap@marvell.com>
+Signed-off-by: Nilesh Javali <njavali@marvell.com>
+Reviewed-by: Himanshu Madhani <himanshu.madhani@oracle.com>
+---
+ qla2x00t-32gbit/qla_os.c | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+Index: scst-3.4.x/qla2x00t-32gbit/qla_os.c
+===================================================================
+--- scst-3.4.x.orig/qla2x00t-32gbit/qla_os.c
++++ scst-3.4.x/qla2x00t-32gbit/qla_os.c
+@@ -2036,6 +2036,11 @@ skip_pio:
+ 	/* Determine queue resources */
+ 	ha->max_req_queues = ha->max_rsp_queues = 1;
+ 	ha->msix_count = QLA_BASE_VECTORS;
++
++	/* Check if FW supports MQ or not */
++	if (!(ha->fw_attributes & BIT_6))
++		goto mqiobase_exit;
++
+ 	if (!ql2xmqsupport || !ql2xnvmeenable ||
+ 	    (!IS_QLA25XX(ha) && !IS_QLA81XX(ha)))
+ 		goto mqiobase_exit;

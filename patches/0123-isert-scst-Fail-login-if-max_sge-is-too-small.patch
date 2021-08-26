@@ -1,0 +1,29 @@
+From 1b5e2eb482a164aaee362529c525b773fc002a87 Mon Sep 17 00:00:00 2001
+From: Bart Van Assche <bvanassche@acm.org>
+Date: Sun, 2 Aug 2020 21:21:38 +0000
+Subject: [PATCH] isert-scst: Fail login if max_sge is too small
+
+git-svn-id: http://svn.code.sf.net/p/scst/svn/trunk@9090 d57e44dd-8a1f-0410-8b47-8ef2f437770f
+---
+ iscsi-scst/kernel/isert-scst/iser_rdma.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/iscsi-scst/kernel/isert-scst/iser_rdma.c b/iscsi-scst/kernel/isert-scst/iser_rdma.c
+index 7f4d60fa..d4ac072b 100644
+--- a/iscsi-scst/kernel/isert-scst/iser_rdma.c
++++ b/iscsi-scst/kernel/isert-scst/iser_rdma.c
+@@ -1302,7 +1302,10 @@ static struct isert_connection *isert_conn_create(struct rdma_cm_id *cm_id,
+ 	isert_conn->max_sge = isert_dev->device_attr.max_recv_sge - 3;
+ #endif
+ 
+-	WARN_ON(isert_conn->max_sge < 1);
++	if (WARN_ON(isert_conn->max_sge < 1)) {
++		err = -ENODEV;
++		goto fail_login_req_pdu;
++	}
+ 
+ 	INIT_LIST_HEAD(&isert_conn->rx_buf_list);
+ 	INIT_LIST_HEAD(&isert_conn->tx_free_list);
+-- 
+2.26.2
+

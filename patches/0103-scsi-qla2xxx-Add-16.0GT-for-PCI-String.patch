@@ -1,0 +1,28 @@
+From efd39a2ad6ff6d1187caac8491d710f41b6a93ab Mon Sep 17 00:00:00 2001
+From: Himanshu Madhani <hmadhani@marvell.com>
+Date: Wed, 26 Feb 2020 14:40:05 -0800
+Subject: [PATCH] scsi: qla2xxx: Add 16.0GT for PCI String
+
+This patch adds 16.0GT for readable display string.
+
+Link: https://lore.kernel.org/r/20200226224022.24518-2-hmadhani@marvell.com
+Signed-off-by: Himanshu Madhani <hmadhani@marvell.com>
+Signed-off-by: Martin K. Petersen <martin.petersen@oracle.com>
+---
+ qla2x00t-32gbit/qla_os.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+Index: scst-3.4.x/qla2x00t-32gbit/qla_os.c
+===================================================================
+--- scst-3.4.x.orig/qla2x00t-32gbit/qla_os.c
++++ scst-3.4.x/qla2x00t-32gbit/qla_os.c
+@@ -599,6 +599,9 @@ qla24xx_pci_info_str(struct scsi_qla_hos
+ 		case 3:
+ 			speed_str = "8.0GT/s";
+ 			break;
++		case 4:
++			speed_str = "16.0GT/s";
++			break;
+ 		default:
+ 			speed_str = "<unknown>";
+ 			break;

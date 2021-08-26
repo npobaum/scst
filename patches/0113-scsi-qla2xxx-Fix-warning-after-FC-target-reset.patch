@@ -1,0 +1,49 @@
+From 0f40406997e06687f905e6061af2d85e37292e9f Mon Sep 17 00:00:00 2001
+From: Bart Van Assche <bvanassche@acm.org>
+Date: Sat, 23 May 2020 21:59:55 +0000
+Subject: [PATCH] scsi: qla2xxx: Fix warning after FC target reset
+
+Currently, FC target reset finishes with the warning message:
+
+------------[ cut here ]------------
+WARNING: CPU: 238 PID: 279973 at ../drivers/scsi/qla2xxx/qla_target.c:6644 qlt_enable_vha+0x1d0/0x260 [qla2xxx]
+Supported: Yes, External
+CPU: 238 PID: 279973 Comm: bash Tainted: G           OE      4.12.14-197.29-default #1 SLE15-SP1
+task: c000000a104c0000 task.stack: c000000b52188000
+NIP: d00000001ffd7f78 LR: d00000001ffd7f6c CTR: c0000000001676c0
+REGS: c000000b5218b910 TRAP: 0700   Tainted: G           OE       (4.12.14-197.29-default)
+Call Trace:
+qlt_enable_vha+0x1c4/0x260 [qla2xxx] (unreliable)
+tcm_qla2xxx_tpg_enable_store+0xc4/0x130 [tcm_qla2xxx]
+configfs_write_file+0xd0/0x190 [configfs]
+__vfs_write+0x3c/0x1e0
+vfs_write+0xd8/0x220
+SyS_write+0x6c/0x110
+system_call+0x3c/0x130
+---[ end trace e32abaf6e6fee826 ]---
+
+Link: https://lore.kernel.org/r/1d7b21bf9f7676643239eb3d60eaca7cfa505cf0.camel@yadro.com
+Reviewed-by: Roman Bolshakov <r.bolshakov@yadro.com>
+Signed-off-by: Viacheslav Dubeyko <v.dubeiko@yadro.com>
+Signed-off-by: Martin K. Petersen <martin.petersen@oracle.com>
+
+[ commit f839544ccff60cbe534282aac68858fc3fb278ca upstream ]
+
+
+git-svn-id: http://svn.code.sf.net/p/scst/svn/trunk@8956 d57e44dd-8a1f-0410-8b47-8ef2f437770f
+---
+ qla2x00t-32gbit/qla_os.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+Index: scst-3.4.x/qla2x00t-32gbit/qla_os.c
+===================================================================
+--- scst-3.4.x.orig/qla2x00t-32gbit/qla_os.c
++++ scst-3.4.x/qla2x00t-32gbit/qla_os.c
+@@ -6308,6 +6308,7 @@ qla2x00_do_dpc(void *data)
+ 
+ 			if (do_reset && !(test_and_set_bit(ABORT_ISP_ACTIVE,
+ 			    &base_vha->dpc_flags))) {
++				base_vha->flags.online = 1;
+ 				ql_dbg(ql_dbg_dpc, base_vha, 0x4007,
+ 				    "ISP abort scheduled.\n");
+ 				if (ha->isp_ops->abort_isp(base_vha)) {

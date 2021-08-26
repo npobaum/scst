@@ -392,7 +392,6 @@ static struct qla_tgt_cmd *sqa_qla2xxx_get_cmd(struct fc_port *sess)
 #endif
 	cmd->sess = sess;
 	cmd->vha = sess->vha;
-	cmd->rel_cmd = sqa_qla2xxx_rel_cmd;
 	return cmd;
 }
 
@@ -674,6 +673,26 @@ done:
 	return res;
 }
 
+static struct qla_tgt_cmd *
+sqa_qla2xxx_find_cmd_by_tag(struct fc_port *fcport, uint64_t tag)
+{
+	struct scst_session *sess = fcport->se_sess->fabric_sess_ptr;
+	struct qla_tgt_cmd *qla_cmd = NULL;
+	struct scst_cmd *cmd;
+	unsigned long flags;
+
+	spin_lock_irqsave(&sess->sess_list_lock, flags);
+	list_for_each_entry(cmd, &sess->sess_cmd_list, sess_cmd_list_entry) {
+		if (cmd->tag == tag) {
+			qla_cmd = scst_cmd_get_tgt_priv(cmd);
+			break;
+		}
+	}
+	spin_unlock_irqrestore(&sess->sess_list_lock, flags);
+
+	return qla_cmd;
+}
+
 static void sqa_qla2xxx_free_cmd(struct qla_tgt_cmd *cmd)
 {
 	struct scst_cmd *scst_cmd = cmd->scst_cmd;
@@ -869,6 +888,8 @@ static int sqa_close_session(struct scst_session *scst_sess)
 	struct fc_port *fcport = scst_sess_get_tgt_priv(scst_sess);
 	unsigned long flags;
 	struct qla_hw_data *ha = fcport->vha->hw;
+
+	fcport->explicit_logout = 1;
 
 	spin_lock_irqsave(&ha->tgt.sess_lock, flags);
 	sqa_qla2xxx_put_sess(fcport);
@@ -1516,6 +1537,7 @@ static int sqa_xmit_response(struct scst_cmd *scst_cmd)
 	cmd->offset = scst_cmd_get_ppl_offset(scst_cmd);
 	cmd->scsi_status = scst_cmd_get_status(scst_cmd);
 	cmd->cdb = (unsigned char *) scst_cmd_get_cdb(scst_cmd);
+	cmd->cdb_len = scst_cmd_get_cdb_len(scst_cmd);
 	cmd->lba = scst_cmd_get_lba(scst_cmd);
 	cmd->trc_flags |= TRC_XMIT_STATUS;
 
@@ -1599,7 +1621,8 @@ static int sqa_rdy_to_xfer(struct scst_cmd *scst_cmd)
 	cmd->dma_data_direction =
 		scst_to_tgt_dma_dir(scst_cmd_get_data_direction(scst_cmd));
 
-	cmd->cdb = scst_cmd_get_cdb(scst_cmd);
+	cmd->cdb = (unsigned char *) scst_cmd_get_cdb(scst_cmd);
+	cmd->cdb_len = scst_cmd_get_cdb_len(scst_cmd);
 	cmd->sg = scst_cmd_get_sg(scst_cmd);
 	cmd->sg_cnt = scst_cmd_get_sg_cnt(scst_cmd);
 	cmd->scsi_status = scst_cmd_get_status(scst_cmd);
@@ -1889,7 +1912,9 @@ static struct qla_tgt_func_tmpl sqa_qla2xxx_template = {
 	.handle_cmd		    = sqa_qla2xxx_handle_cmd,
 	.handle_data		    = sqa_qla2xxx_handle_data,
 	.handle_tmr		    = sqa_qla2xxx_handle_tmr,
+	.find_cmd_by_tag	    = sqa_qla2xxx_find_cmd_by_tag,
 	.get_cmd		    = sqa_qla2xxx_get_cmd,
+	.rel_cmd		    = sqa_qla2xxx_rel_cmd,
 	.free_cmd		    = sqa_qla2xxx_free_cmd,
 	.free_mcmd		    = sqa_qla2xxx_free_mcmd,
 	.free_session		    = sqa_qla2xxx_free_session,

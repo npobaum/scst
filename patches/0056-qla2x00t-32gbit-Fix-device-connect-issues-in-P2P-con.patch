@@ -1,0 +1,70 @@
+From 50dae0f79955339da3c830981922ff9ac19f9e5e Mon Sep 17 00:00:00 2001
+From: Bart Van Assche <bvanassche@acm.org>
+Date: Thu, 26 Dec 2019 00:22:54 +0000
+Subject: [PATCH] qla2x00t-32gbit: Fix device connect issues in P2P
+ configuration
+
+P2P needs to take the alternate plogi route.
+
+Link: https://lore.kernel.org/r/20191105150657.8092-8-hmadhani@marvell.com
+Reviewed-by: Ewan D. Milne <emilne@redhat.com>
+Signed-off-by: Arun Easi <aeasi@marvell.com>
+Signed-off-by: Himanshu Madhani <hmadhani@marvell.com>
+Signed-off-by: Martin K. Petersen <martin.petersen@oracle.com>
+
+[ commit 65e9200938052ce90f24421bb057e1be1d6147c7 upstream ]
+
+
+git-svn-id: http://svn.code.sf.net/p/scst/svn/trunk@8717 d57e44dd-8a1f-0410-8b47-8ef2f437770f
+---
+ qla2x00t-32gbit/qla_gbl.h  | 1 +
+ qla2x00t-32gbit/qla_init.c | 9 +++++++++
+ qla2x00t-32gbit/qla_iocb.c | 5 ++---
+ 3 files changed, 12 insertions(+), 3 deletions(-)
+
+Index: scst-3.4.x/qla2x00t-32gbit/qla_gbl.h
+===================================================================
+--- scst-3.4.x.orig/qla2x00t-32gbit/qla_gbl.h
++++ scst-3.4.x/qla2x00t-32gbit/qla_gbl.h
+@@ -926,4 +926,5 @@ int qla2x00_set_data_rate(scsi_qla_host_
+ 
+ /* nvme.c */
+ void qla_nvme_unregister_remote_port(struct fc_port *fcport);
++void qla_handle_els_plogi_done(scsi_qla_host_t *vha, struct event_arg *ea);
+ #endif /* _QLA_GBL_H */
+Index: scst-3.4.x/qla2x00t-32gbit/qla_init.c
+===================================================================
+--- scst-3.4.x.orig/qla2x00t-32gbit/qla_init.c
++++ scst-3.4.x/qla2x00t-32gbit/qla_init.c
+@@ -1701,6 +1701,15 @@ void qla24xx_handle_relogin_event(scsi_q
+ 	qla24xx_fcport_handle_login(vha, fcport);
+ }
+ 
++void qla_handle_els_plogi_done(scsi_qla_host_t *vha,
++				      struct event_arg *ea)
++{
++	ql_dbg(ql_dbg_disc, vha, 0x2118,
++	    "%s %d %8phC post PRLI\n",
++	    __func__, __LINE__, ea->fcport->port_name);
++	qla24xx_post_prli_work(vha, ea->fcport);
++}
++
+ /*
+  * RSCN(s) came in for this fcport, but the RSCN(s) was not able
+  * to be consumed by the fcport
+Index: scst-3.4.x/qla2x00t-32gbit/qla_iocb.c
+===================================================================
+--- scst-3.4.x.orig/qla2x00t-32gbit/qla_iocb.c
++++ scst-3.4.x/qla2x00t-32gbit/qla_iocb.c
+@@ -2765,9 +2765,8 @@ static void qla2x00_els_dcmd2_sp_done(sr
+ 		case CS_COMPLETE:
+ 			memset(&ea, 0, sizeof(ea));
+ 			ea.fcport = fcport;
+-			ea.data[0] = MBS_COMMAND_COMPLETE;
+-			ea.sp = sp;
+-			qla24xx_handle_plogi_done_event(vha, &ea);
++			ea.rc = res;
++			qla_handle_els_plogi_done(vha, &ea);
+ 			break;
+ 		case CS_IOCB_ERROR:
+ 			switch (fw_status[1]) {

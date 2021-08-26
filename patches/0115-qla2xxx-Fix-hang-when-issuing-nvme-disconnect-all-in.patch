@@ -1,0 +1,43 @@
+From 6bbee1b2222edc688a12f4b851a75d9544995885 Mon Sep 17 00:00:00 2001
+From: Bart Van Assche <bvanassche@acm.org>
+Date: Sat, 13 Jun 2020 17:40:49 +0000
+Subject: [PATCH 115/117] qla2xxx: Fix hang when issuing nvme disconnect-all in
+ NPIV
+
+In NPIV environment, a NPIV host may use a queue pair created by base host
+or other NPIVs, so the check for a queue pair created by this NPIV is not
+correct, and can cause an abort to fail, which in turn means the NVME
+command not returned.  This leads to hang in nvme_fc layer in
+nvme_fc_delete_association() which waits for all I/Os to be returned, which
+is seen as hang in the application.
+
+Link: https://lore.kernel.org/r/20200331104015.24868-3-njavali@marvell.com
+Reviewed-by: Himanshu Madhani <himanshu.madhani@oracle.com>
+Signed-off-by: Arun Easi <aeasi@marvell.com>
+Signed-off-by: Nilesh Javali <njavali@marvell.com>
+Signed-off-by: Martin K. Petersen <martin.petersen@oracle.com>
+
+[ commit 45a76264c26fd8cfd0c9746196892d9b7e2657ee upstream ]
+
+
+git-svn-id: http://svn.code.sf.net/p/scst/svn/trunk@9020 d57e44dd-8a1f-0410-8b47-8ef2f437770f
+---
+ qla2x00t-32gbit/qla_mbx.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/qla2x00t-32gbit/qla_mbx.c b/qla2x00t-32gbit/qla_mbx.c
+index 6d036090..df31ee0d 100644
+--- a/qla2x00t-32gbit/qla_mbx.c
++++ b/qla2x00t-32gbit/qla_mbx.c
+@@ -3152,7 +3152,7 @@ qla24xx_abort_command(srb_t *sp)
+ 	ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x108c,
+ 	    "Entered %s.\n", __func__);
+ 
+-	if (vha->flags.qpairs_available && sp->qpair)
++	if (sp->qpair)
+ 		req = sp->qpair->req;
+ 	else
+ 		return QLA_FUNCTION_FAILED;
+-- 
+2.17.1
+

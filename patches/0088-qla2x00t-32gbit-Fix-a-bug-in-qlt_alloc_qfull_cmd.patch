@@ -1,0 +1,29 @@
+From 4978587a5212cd6447456909c26ea08e77dfd78c Mon Sep 17 00:00:00 2001
+From: Bart Van Assche <bvanassche@acm.org>
+Date: Thu, 26 Dec 2019 00:42:31 +0000
+Subject: [PATCH] qla2x00t-32gbit: Fix a bug in qlt_alloc_qfull_cmd()
+
+Remove a memset() call that clears the data members initialized by
+sqa_qla2xxx_get_cmd().
+
+Fixes: b8a1634ced7d ("qla2x00t-32gbit: Import this driver into the SCST repository")
+
+
+git-svn-id: http://svn.code.sf.net/p/scst/svn/trunk@8756 d57e44dd-8a1f-0410-8b47-8ef2f437770f
+---
+ qla2x00t-32gbit/qla_target.c | 2 --
+ 1 file changed, 2 deletions(-)
+
+Index: scst-3.4.x/qla2x00t-32gbit/qla_target.c
+===================================================================
+--- scst-3.4.x.orig/qla2x00t-32gbit/qla_target.c
++++ scst-3.4.x/qla2x00t-32gbit/qla_target.c
+@@ -5469,8 +5469,6 @@ qlt_alloc_qfull_cmd(struct scsi_qla_host
+ 		return;
+ 	}
+ 
+-	memset(cmd, 0, sizeof(struct qla_tgt_cmd));
+-
+ 	qlt_incr_num_pend_cmds(vha);
+ 	INIT_LIST_HEAD(&cmd->cmd_list);
+ 	memcpy(&cmd->atio, atio, sizeof(*atio));

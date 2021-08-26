@@ -1,0 +1,33 @@
+From d7bcb43d3319bf5d9b2490082ad2d9fb0c3ae3b9 Mon Sep 17 00:00:00 2001
+From: Bart Van Assche <bvanassche@acm.org>
+Date: Wed, 24 Feb 2021 04:42:01 +0000
+Subject: [PATCH] scst_lib: Fix scst_prepare_request_sense()
+
+See also https://sourceforge.net/p/scst/tickets/49/.
+
+Reported-by: Philip Pritchard
+Fixes: f16c5d1b2e23 ("scst: Rework scst_prepare_request_sense()")
+
+
+
+git-svn-id: http://svn.code.sf.net/p/scst/svn/trunk@9343 d57e44dd-8a1f-0410-8b47-8ef2f437770f
+---
+ scst/src/scst_lib.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/scst/src/scst_lib.c b/scst/src/scst_lib.c
+index bfcec05f..f8c21df5 100644
+--- a/scst/src/scst_lib.c
++++ b/scst/src/scst_lib.c
+@@ -5947,6 +5947,8 @@ int scst_prepare_request_sense(struct scst_cmd *orig_cmd)
+ 	wake_up(&rs_cmd->cmd_threads->cmd_list_waitQ);
+ 	spin_unlock_irq(&rs_cmd->cmd_threads->cmd_list_lock);
+ 
++	res = 0;
++
+ out:
+ 	TRACE_EXIT_RES(res);
+ 	return res;
+-- 
+2.26.3
+

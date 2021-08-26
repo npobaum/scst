@@ -700,6 +700,7 @@ struct qla_tgt_func_tmpl {
 	int (*handle_tmr)(struct qla_tgt_mgmt_cmd *, u64, uint16_t,
 			uint32_t);
 	struct qla_tgt_cmd *(*get_cmd)(struct fc_port *);
+	void (*rel_cmd)(struct qla_tgt_cmd *);
 	void (*free_cmd)(struct qla_tgt_cmd *);
 	void (*free_mcmd)(struct qla_tgt_mgmt_cmd *);
 	void (*free_session)(struct fc_port *);
@@ -960,6 +961,7 @@ struct qla_tgt_cmd {
 
 	struct crc_context *ctx;
 	const uint8_t	*cdb;
+	unsigned int cdb_len;
 	uint64_t	lba;
 	uint16_t	a_guard, e_guard, a_app_tag, e_app_tag;
 	uint32_t	a_ref_tag, e_ref_tag;
@@ -968,7 +970,7 @@ struct qla_tgt_cmd {
 
 	uint64_t jiffies_at_alloc;
 	uint64_t jiffies_at_free;
-	void (*rel_cmd)(struct qla_tgt_cmd *);
+
 	enum trace_flags trc_flags;
 };
 

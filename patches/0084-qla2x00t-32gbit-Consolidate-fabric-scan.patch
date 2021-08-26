@@ -1,0 +1,39 @@
+From a838112bdbf6c215e24b8208be14c9ffbe739e55 Mon Sep 17 00:00:00 2001
+From: Bart Van Assche <bvanassche@acm.org>
+Date: Thu, 26 Dec 2019 00:40:25 +0000
+Subject: [PATCH] qla2x00t-32gbit: Consolidate fabric scan
+
+Consolidate scan for fabric loop and fabric topologies into a single scan.
+
+Link: https://lore.kernel.org/r/20191217220617.28084-11-hmadhani@marvell.com
+Signed-off-by: Quinn Tran <qutran@marvell.com>
+Signed-off-by: Himanshu Madhani <hmadhani@marvell.com>
+Signed-off-by: Martin K. Petersen <martin.petersen@oracle.com>
+
+[ commit 25009f0e147951f02618d71e4671a3104e2bb552 upstream ]
+
+
+git-svn-id: http://svn.code.sf.net/p/scst/svn/trunk@8751 d57e44dd-8a1f-0410-8b47-8ef2f437770f
+---
+ qla2x00t-32gbit/qla_init.c | 8 ++------
+ 1 file changed, 2 insertions(+), 6 deletions(-)
+
+Index: scst-3.4.x/qla2x00t-32gbit/qla_init.c
+===================================================================
+--- scst-3.4.x.orig/qla2x00t-32gbit/qla_init.c
++++ scst-3.4.x/qla2x00t-32gbit/qla_init.c
+@@ -4949,12 +4949,8 @@ qla2x00_configure_loop(scsi_qla_host_t *
+ 	qla2x00_get_data_rate(vha);
+ 
+ 	/* Determine what we need to do */
+-	if (ha->current_topology == ISP_CFG_FL &&
+-	    (test_bit(LOCAL_LOOP_UPDATE, &flags))) {
+-
+-		set_bit(RSCN_UPDATE, &flags);
+-
+-	} else if (ha->current_topology == ISP_CFG_F &&
++	if ((ha->current_topology == ISP_CFG_FL ||
++	    ha->current_topology == ISP_CFG_F) &&
+ 	    (test_bit(LOCAL_LOOP_UPDATE, &flags))) {
+ 
+ 		set_bit(RSCN_UPDATE, &flags);

@@ -114,7 +114,7 @@ static inline void scst_set_cmd_state(struct scst_cmd *cmd,
  ** max_tgt_dev_commands defined. Then it will start getting TASK QUEUE FULL
  ** status.
  **/
-#define SCST_MAX_TGT_DEV_COMMANDS            64
+#define SCST_MAX_TGT_DEV_COMMANDS            128
 
 #ifdef CONFIG_SCST_PER_DEVICE_CMD_COUNT_LIMIT
 /**
@@ -133,7 +133,7 @@ static inline void scst_set_cmd_state(struct scst_cmd *cmd,
 #define SCST_MAX_VALID_BUFFLEN_MASK	     (~((1 << (32 - 12)) - 1))
 
 #define SCST_MAX_EACH_INTERNAL_IO_SIZE	     (128*1024)
-#define SCST_MAX_IN_FLIGHT_INTERNAL_COMMANDS 32
+#define SCST_MAX_IN_FLIGHT_INTERNAL_COMMANDS 64
 
 /*
  * Compatibility with real-time (CONFIG_PREEMPT_RT_FULL) kernels.

@@ -53,8 +53,8 @@ ifneq ($(CONFIG_SCSI_QLA2XXX_TARGET),)
 ccflags-y += -DCONFIG_SCSI_QLA2XXX_TARGET=$(CONFIG_SCSI_QLA2XXX_TARGET)
 endif
 
-obj-m := qla2xxx_scst.o
-qla2xxx_scst-objs := \
+obj-m := qla2xxx.o
+qla2xxx-objs := \
 		qla_os.o qla_init.o qla_mbx.o qla_iocb.o qla_isr.o qla_gs.o \
 		qla_dbg.o qla_sup.o qla_attr.o qla_mid.o qla_dfs.o qla_bsg.o \
 		qla_nx.o qla_mr.o qla_nx2.o qla_target.o qla_tmpl.o qla_nvme.o
@@ -71,7 +71,7 @@ install: all
 		CONFIG_MODULE_SIG_ALL= modules_install
 
 uninstall:
-	rm -f $(INSTALL_DIR)/qla2xxx_scst.ko
+	rm -f $(INSTALL_DIR)/qla2xxx.ko
 	-/sbin/depmod -b $(INSTALL_MOD_PATH)/ -a $(KVER)
 
 ########## END OUT-OF-TREE RULES ##########

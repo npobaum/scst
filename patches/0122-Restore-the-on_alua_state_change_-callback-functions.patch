@@ -1,0 +1,259 @@
+From d333ce8232a496947be93bf3b01eb9d98c04bacd Mon Sep 17 00:00:00 2001
+From: Bart Van Assche <bvanassche@acm.org>
+Date: Mon, 10 Aug 2020 00:31:42 +0000
+Subject: [PATCH] Restore the on_alua_state_change_*() callback functions
+
+Apparently the bind_alua_state functionality is being used. Hence restore
+the on_alua_state_change_*() callback functions. The changes compared to
+the previous implementation are:
+* Only invoke the on_alua_state_change_*() callback functions if the state
+  of a local target port group is being modified.
+* Report information about ALUA callback activity with PRINT_INFO() instead
+  of TRACE_MGMT_DBG().
+
+This patch reverts commit 29548a4ad717 ("scst: Remove the
+on_alua_state_change_*() callback functions").
+
+
+git-svn-id: http://svn.code.sf.net/p/scst/svn/trunk@9120 d57e44dd-8a1f-0410-8b47-8ef2f437770f
+---
+ scst/include/scst.h                | 28 ++++++++++
+ scst/src/dev_handlers/scst_vdisk.c | 87 +++++++++++++++++++++++++++++-
+ scst/src/scst_tg.c                 | 26 ++++++---
+ 3 files changed, 134 insertions(+), 7 deletions(-)
+
+diff --git a/scst/include/scst.h b/scst/include/scst.h
+index bc55275b..8ee3fd80 100644
+--- a/scst/include/scst.h
++++ b/scst/include/scst.h
+@@ -1401,6 +1401,34 @@ struct scst_dev_type {
+ 	void (*ext_copy_remap)(struct scst_cmd *cmd,
+ 		struct scst_ext_copy_seg_descr *descr);
+ 
++	/*
++	 * Called to notify dev handler that a ALUA state change is about to
++	 * be started. Can be used to close open file handlers, which might
++	 * prevent the state switch.
++	 *
++	 * Called under scst_dg_mutex and no activities on the dev handler level
++	 * (for implicit ALUA case supposed to be done by the user space via
++	 * "block" sysfs attribute as described in the README).
++	 *
++	 * OPTIONAL
++	 */
++	void (*on_alua_state_change_start)(struct scst_device *dev,
++		enum scst_tg_state old_state, enum scst_tg_state new_state);
++
++	/*
++	 * Called to notify dev handler that a ALUA state change is about to
++	 * be finished. Can be used to (re)open file handlers closed in
++	 * on_alua_state_change_start().
++	 *
++	 * Called under scst_dg_mutex and no activities on the dev handler level
++	 * (for implicit ALUA case supposed to be done by the user space via
++	 * "block" sysfs attribute as described in the README).
++	 *
++	 * OPTIONAL
++	 */
++	void (*on_alua_state_change_finish)(struct scst_device *dev,
++		enum scst_tg_state old_state, enum scst_tg_state new_state);
++
+ 	/*
+ 	 * Called to notify dev handler that a task management command received
+ 	 *
+diff --git a/scst/src/dev_handlers/scst_vdisk.c b/scst/src/dev_handlers/scst_vdisk.c
+index 2b272b25..dc4c2677 100644
+--- a/scst/src/dev_handlers/scst_vdisk.c
++++ b/scst/src/dev_handlers/scst_vdisk.c
+@@ -6441,6 +6441,86 @@ static enum compl_status_e nullio_exec_verify(struct vdisk_cmd_params *p)
+ 	return CMD_SUCCEEDED;
+ }
+ 
++static void blockio_on_alua_state_change_start(struct scst_device *dev,
++	enum scst_tg_state old_state, enum scst_tg_state new_state)
++{
++	struct scst_vdisk_dev *virt_dev = dev->dh_priv;
++	const bool close = virt_dev->dev_active &&
++		new_state != SCST_TG_STATE_OPTIMIZED &&
++		new_state != SCST_TG_STATE_NONOPTIMIZED;
++
++	TRACE_ENTRY();
++
++	/* No other fd activity may happen concurrently with this function. */
++	lockdep_assert_alua_lock_held();
++
++	if (!virt_dev->bind_alua_state)
++		return;
++
++	PRINT_INFO("dev %s: ALUA state change from %s to %s started,%s closing FD",
++		   dev->virt_name, scst_alua_state_name(old_state),
++		   scst_alua_state_name(new_state), close ? "" : " not");
++
++	if (!close)
++		return;
++
++	virt_dev->dev_active = 0;
++
++	vdisk_close_fd(virt_dev);
++
++	TRACE_EXIT();
++	return;
++}
++
++static void blockio_on_alua_state_change_finish(struct scst_device *dev,
++	enum scst_tg_state old_state, enum scst_tg_state new_state)
++{
++	struct scst_vdisk_dev *virt_dev = dev->dh_priv;
++	const bool open = !virt_dev->dev_active &&
++		(new_state == SCST_TG_STATE_OPTIMIZED ||
++		 new_state == SCST_TG_STATE_NONOPTIMIZED);
++	int rc = 0;
++
++	TRACE_ENTRY();
++
++	/* No other fd activity may happen concurrently with this function. */
++	lockdep_assert_alua_lock_held();
++
++	if (!virt_dev->bind_alua_state)
++		return;
++
++	PRINT_INFO("dev %s: ALUA state change from %s to %s finished,%s reopening FD",
++		   dev->virt_name, scst_alua_state_name(old_state),
++		   scst_alua_state_name(new_state), open ? "" : " not");
++
++	if (!open)
++		return;
++
++	virt_dev->dev_active = 1;
++
++	/*
++	 * only reopen fd if tgt_dev_cnt is not zero, otherwise we will
++	 * leak reference.
++	 */
++	if (virt_dev->tgt_dev_cnt)
++		rc = vdisk_open_fd(virt_dev, dev->dev_rd_only);
++
++	if (rc == 0) {
++		if (virt_dev->reexam_pending) {
++			rc = vdisk_reexamine(virt_dev);
++			WARN_ON(rc != 0);
++			virt_dev->reexam_pending = 0;
++		}
++	} else {
++		PRINT_ERROR("dev %s: opening after ALUA state change to %s failed",
++			    dev->virt_name,
++			    scst_alua_state_name(new_state));
++	}
++
++	TRACE_EXIT();
++	return;
++}
++
+ static void vdisk_task_mgmt_fn_done(struct scst_mgmt_cmd *mcmd,
+ 	struct scst_tgt_dev *tgt_dev)
+ {
+@@ -9316,7 +9396,10 @@ static int vdev_sysfs_process_active_store(
+ 	res = mutex_lock_interruptible(&scst_mutex);
+ 	if (res)
+ 		goto resume;
+-	/* To do: verify whether this call is still necessary. */
++	/*
++	 * This is used to serialize against the *_on_alua_state_change_*()
++	 * calls in scst_tg.c
++	 */
+ 	scst_alua_lock();
+ 
+ 	/*
+@@ -9798,6 +9881,8 @@ static struct scst_dev_type vdisk_blk_devtype = {
+ 	.detach_tgt =		vdisk_detach_tgt,
+ 	.parse =		non_fileio_parse,
+ 	.exec =			blockio_exec,
++	.on_alua_state_change_start = blockio_on_alua_state_change_start,
++	.on_alua_state_change_finish = blockio_on_alua_state_change_finish,
+ 	.task_mgmt_fn_done =	vdisk_task_mgmt_fn_done,
+ 	.get_supported_opcodes = vdisk_get_supported_opcodes,
+ 	.devt_priv =		(void *)blockio_ops,
+diff --git a/scst/src/scst_tg.c b/scst/src/scst_tg.c
+index c86910a2..5077d054 100644
+--- a/scst/src/scst_tg.c
++++ b/scst/src/scst_tg.c
+@@ -964,18 +964,26 @@ out_fail:
+ }
+ 
+ /*
+- * __scst_tgt_set_state - Update the ALUA filter of a LUN
++ * __scst_tgt_set_state - Update the ALUA filter of a LUN and invoke callbacks
+  * @tg: ALUA target group of which the state is changing.
+  * @tgt_dev: LUN to be updated.
+  * @state: new ALUA state.
++ * @invoke_callbacks: Whether or not to invoke the on_alua_state_changed_*
++ *	callback functions.
+  */
+ static void __scst_tgt_set_state(struct scst_target_group *tg,
+-	struct scst_tgt_dev *tgt_dev, enum scst_tg_state state)
++	struct scst_tgt_dev *tgt_dev, enum scst_tg_state state,
++	bool invoke_callbacks)
+ {
+ 	bool gen_ua = state != SCST_TG_STATE_TRANSITIONING;
+ 	struct scst_tgt *tgt = tgt_dev->sess->tgt;
++	enum scst_tg_state old_state = tg->state;
++	struct scst_device *dev = tgt_dev->dev;
+ 	struct scst_dev_group *dg = tg->dg;
+ 
++	if (invoke_callbacks && dev->handler->on_alua_state_change_start)
++		dev->handler->on_alua_state_change_start(dev, old_state,
++							 state);
+ 	/*
+ 	 * If the ALUA state transition is caused by an STPG command and if
+ 	 * the STPG command has been received through the target port of which
+@@ -985,6 +993,9 @@ static void __scst_tgt_set_state(struct scst_target_group *tg,
+ 	    tid_equal(dg->stpg_transport_id, tgt_dev->sess->transport_id))
+ 		gen_ua = false;
+ 	scst_tg_change_tgt_dev_state(tgt_dev, state, gen_ua);
++	if (invoke_callbacks && dev->handler->on_alua_state_change_finish)
++		dev->handler->on_alua_state_change_finish(dev, old_state,
++							  state);
+ }
+ 
+ /*
+@@ -1000,6 +1011,7 @@ static void __scst_tg_set_state(struct scst_target_group *tg,
+ 	struct scst_tgt_dev *tgt_dev;
+ 	struct scst_tg_tgt *tg_tgt;
+ 	struct scst_tgt *tgt;
++	bool invoke_callbacks;
+ 
+ 	sBUG_ON(state >= ARRAY_SIZE(scst_alua_filter));
+ 	lockdep_assert_held(&scst_dg_mutex);
+@@ -1007,23 +1019,25 @@ static void __scst_tg_set_state(struct scst_target_group *tg,
+ 	if (tg->state == state)
+ 		return;
+ 
+-	tg->state = state;
+-
+ 	list_for_each_entry(dg_dev, &tg->dg->dev_list, entry) {
++		invoke_callbacks = true;
+ 		dev = dg_dev->dev;
+ 		list_for_each_entry(tgt_dev, &dev->dev_tgt_dev_list,
+ 				    dev_tgt_dev_list_entry) {
+ 			tgt = tgt_dev->sess->tgt;
+ 			list_for_each_entry(tg_tgt, &tg->tgt_list, entry) {
+ 				if (tg_tgt->tgt == tgt) {
+-					__scst_tgt_set_state(tg, tgt_dev,
+-							     state);
++					__scst_tgt_set_state(tg, tgt_dev, state,
++							     invoke_callbacks);
++					invoke_callbacks = false;
+ 					break;
+ 				}
+ 			}
+ 		}
+ 	}
+ 
++	tg->state = state;
++
+ 	scst_check_alua_invariant();
+ 
+ 	PRINT_INFO("Changed ALUA state of %s/%s into %s", tg->dg->name,
+-- 
+2.26.2
+

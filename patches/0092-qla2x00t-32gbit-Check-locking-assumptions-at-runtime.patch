@@ -1,0 +1,42 @@
+From 590c45cf3227e4668fedd0a32c123b0b2c847ad4 Mon Sep 17 00:00:00 2001
+From: Bart Van Assche <bvanassche@acm.org>
+Date: Sat, 7 Mar 2020 21:08:16 +0000
+Subject: [PATCH] qla2x00t-32gbit: Check locking assumptions at runtime in
+ qla2x00_abort_srb()
+
+Document the locking assumptions this function relies on and also verify
+these locking assumptions at runtime.
+
+Cc: Quinn Tran <qutran@marvell.com>
+Cc: Daniel Wagner <dwagner@suse.de>
+Link: https://lore.kernel.org/r/20200123042345.23886-2-bvanassche@acm.org
+Acked-by: Himanshu Madhani <hmadhani@marvell.com>
+Reviewed-by: Martin Wilck <mwilck@suse.com>
+Reviewed-by: Roman Bolshakov <r.bolshakov@yadro.com>
+Signed-off-by: Bart Van Assche <bvanassche@acm.org>
+Signed-off-by: Martin K. Petersen <martin.petersen@oracle.com>
+
+[ commit 2494c2868d6e0eaaefd42f4fd2d260a8c35d240d upstream ]
+
+
+git-svn-id: http://svn.code.sf.net/p/scst/svn/trunk@8785 d57e44dd-8a1f-0410-8b47-8ef2f437770f
+---
+ qla2x00t-32gbit/qla_os.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/qla2x00t-32gbit/qla_os.c b/qla2x00t-32gbit/qla_os.c
+index 3b65ef45..d184eac0 100644
+--- a/qla2x00t-32gbit/qla_os.c
++++ b/qla2x00t-32gbit/qla_os.c
+@@ -1737,6 +1737,8 @@ static void qla2x00_abort_srb(struct qla_qpair *qp, srb_t *sp, const int res,
+ 	bool ret_cmd;
+ 	uint32_t ratov_j;
+ 
++	lockdep_assert_held(qp->qp_lock_ptr);
++
+ 	if (qla2x00_chip_is_down(vha)) {
+ 		sp->done(sp, res);
+ 		return;
+-- 
+2.24.1
+

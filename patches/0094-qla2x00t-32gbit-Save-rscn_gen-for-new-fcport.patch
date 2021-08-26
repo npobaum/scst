@@ -1,0 +1,31 @@
+From a14a1505f293fae40d5bca01cee083d4aa50f6a0 Mon Sep 17 00:00:00 2001
+From: Bart Van Assche <bvanassche@acm.org>
+Date: Sat, 7 Mar 2020 21:22:51 +0000
+Subject: [PATCH] qla2x00t-32gbit: Save rscn_gen for new fcport
+
+Add missing rscn_gen when creating new fcport.
+
+Link: https://lore.kernel.org/r/20200212214436.25532-22-hmadhani@marvell.com
+Signed-off-by: Himanshu Madhani <hmadhani@marvell.com>
+Signed-off-by: Martin K. Petersen <martin.petersen@oracle.com>
+
+[ commit d26a8982c9bd92ce3596eb4f86e922cdaf6751e5 upstream ]
+
+
+git-svn-id: http://svn.code.sf.net/p/scst/svn/trunk@8805 d57e44dd-8a1f-0410-8b47-8ef2f437770f
+---
+ qla2x00t-32gbit/qla_gs.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+Index: scst-3.4.x/qla2x00t-32gbit/qla_gs.c
+===================================================================
+--- scst-3.4.x.orig/qla2x00t-32gbit/qla_gs.c
++++ scst-3.4.x/qla2x00t-32gbit/qla_gs.c
+@@ -3647,6 +3647,7 @@ void qla24xx_async_gnnft_done(scsi_qla_h
+ 			if (memcmp(rp->port_name, fcport->port_name, WWN_SIZE))
+ 				continue;
+ 			fcport->scan_state = QLA_FCPORT_FOUND;
++			fcport->last_rscn_gen = fcport->rscn_gen;
+ 			found = true;
+ 			/*
+ 			 * If device was not a fabric device before.

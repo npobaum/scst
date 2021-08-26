@@ -1,0 +1,46 @@
+From 3a957d352a2a0b3f7ba3fa8cad351628e40bcaf8 Mon Sep 17 00:00:00 2001
+From: Bart Van Assche <bvanassche@acm.org>
+Date: Sat, 13 Jun 2020 17:42:10 +0000
+Subject: [PATCH 117/117] qla2xxx: Do not log message when reading port speed
+ via sysfs
+
+Calling ql_log() inside qla2x00_port_speed_show() is causing messages to be
+output to the console for no particularly good reason.  The sysfs read
+routine should just return the information to userspace.  The only reason
+to log a message is when the port speed actually changes, and this already
+occurs elsewhere.
+
+Link: https://lore.kernel.org/r/20200504175416.15417-1-emilne@redhat.com
+Fixes: 4910b524ac9e ("scsi: qla2xxx: Add support for setting port speed")
+Cc: <stable@vger.kernel.org> # v5.1+
+Reviewed-by: Lee Duncan <lduncan@suse.com>
+Reviewed-by: Laurence Oberman <loberman@redhat.com>
+Reviewed-by: Himanshu Madhani <himanshu.madhani@oracle.com>
+Signed-off-by: Ewan D. Milne <emilne@redhat.com>
+Signed-off-by: Martin K. Petersen <martin.petersen@oracle.com>
+
+[ commit fb9024b0646939e59d8a0b6799b317070619795a upstream ]
+
+
+git-svn-id: http://svn.code.sf.net/p/scst/svn/trunk@9022 d57e44dd-8a1f-0410-8b47-8ef2f437770f
+---
+ qla2x00t-32gbit/qla_attr.c | 3 ---
+ 1 file changed, 3 deletions(-)
+
+diff --git a/qla2x00t-32gbit/qla_attr.c b/qla2x00t-32gbit/qla_attr.c
+index 3de3b2a7..5d93ccc7 100644
+--- a/qla2x00t-32gbit/qla_attr.c
++++ b/qla2x00t-32gbit/qla_attr.c
+@@ -1873,9 +1873,6 @@ qla2x00_port_speed_show(struct device *dev, struct device_attribute *attr,
+ 		return -EINVAL;
+ 	}
+ 
+-	ql_log(ql_log_info, vha, 0x70d6,
+-	    "port speed:%d\n", ha->link_data_rate);
+-
+ 	return scnprintf(buf, PAGE_SIZE, "%s\n", spd[ha->link_data_rate]);
+ }
+ 
+-- 
+2.17.1
+

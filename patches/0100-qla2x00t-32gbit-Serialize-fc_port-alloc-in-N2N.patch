@@ -1,0 +1,54 @@
+From 7924ccd89c29dbfa0241021a820a0c9b4e1cca63 Mon Sep 17 00:00:00 2001
+From: Bart Van Assche <bvanassche@acm.org>
+Date: Sat, 7 Mar 2020 21:38:18 +0000
+Subject: [PATCH] qla2x00t-32gbit: Serialize fc_port alloc in N2N
+
+For N2N, fc_port struct is created during report id acquisition.  At
+later time, the loop resync (fabric, n2n, loop) would trigger the rest
+of the login using the created fc_port struct.  The loop resync logic
+can trigger another fc_port allocation if the 1st allocation was not
+able to execute.  This patch prevents the 2nd allocation trigger.
+
+Link: https://lore.kernel.org/r/20200226224022.24518-15-hmadhani@marvell.com
+Signed-off-by: Himanshu Madhani <hmadhani@marvell.com>
+Signed-off-by: Quinn Tran <qutran@marvell.com>
+Signed-off-by: Martin K. Petersen <martin.petersen@oracle.com>
+
+[ commit 11efe8755d73efd153d6459240866b6d52448f19 upstream ]
+
+
+
+git-svn-id: http://svn.code.sf.net/p/scst/svn/trunk@8828 d57e44dd-8a1f-0410-8b47-8ef2f437770f
+---
+ qla2x00t-32gbit/qla_init.c | 1 +
+ qla2x00t-32gbit/qla_os.c   | 5 ++---
+ 2 files changed, 3 insertions(+), 3 deletions(-)
+
+Index: scst-3.4.x/qla2x00t-32gbit/qla_init.c
+===================================================================
+--- scst-3.4.x.orig/qla2x00t-32gbit/qla_init.c
++++ scst-3.4.x/qla2x00t-32gbit/qla_init.c
+@@ -5106,6 +5106,7 @@ skip_login:
+ 			set_bit(LOCAL_LOOP_UPDATE, &vha->dpc_flags);
+ 			set_bit(LOOP_RESYNC_NEEDED, &vha->dpc_flags);
+ 		}
++		return QLA_FUNCTION_FAILED;
+ 	}
+ 
+ 	found_devs = 0;
+Index: scst-3.4.x/qla2x00t-32gbit/qla_os.c
+===================================================================
+--- scst-3.4.x.orig/qla2x00t-32gbit/qla_os.c
++++ scst-3.4.x/qla2x00t-32gbit/qla_os.c
+@@ -5219,9 +5219,8 @@ void qla24xx_create_new_sess(struct scsi
+ 					fcport->n2n_flag = 1;
+ 				}
+ 				fcport->fw_login_state = 0;
+-				/*
+-				 * wait link init done before sending login
+-				 */
++
++				schedule_delayed_work(&vha->scan.scan_work, 5);
+ 			} else {
+ 				qla24xx_fcport_handle_login(vha, fcport);
+ 			}

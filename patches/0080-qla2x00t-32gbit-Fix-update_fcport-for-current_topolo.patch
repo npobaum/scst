@@ -1,0 +1,36 @@
+From 6c8601bc82fca931e11fac381f14546d460984c0 Mon Sep 17 00:00:00 2001
+From: Bart Van Assche <bvanassche@acm.org>
+Date: Thu, 26 Dec 2019 00:38:30 +0000
+Subject: [PATCH] qla2x00t-32gbit: Fix update_fcport for current_topology
+
+logout_on_delete flag should not be set if the topology is Loop. This patch
+fixes unintentional logout during loop topology.
+
+Link: https://lore.kernel.org/r/20191217220617.28084-6-hmadhani@marvell.com
+Signed-off-by: Himanshu Madhani <hmadhani@marvell.com>
+Signed-off-by: Martin K. Petersen <martin.petersen@oracle.com>
+
+[ commit 89eb2e7e794da2691e5aca02ed102bb287e3575a upstream ]
+
+
+git-svn-id: http://svn.code.sf.net/p/scst/svn/trunk@8746 d57e44dd-8a1f-0410-8b47-8ef2f437770f
+---
+ qla2x00t-32gbit/qla_init.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+Index: scst-3.4.x/qla2x00t-32gbit/qla_init.c
+===================================================================
+--- scst-3.4.x.orig/qla2x00t-32gbit/qla_init.c
++++ scst-3.4.x/qla2x00t-32gbit/qla_init.c
+@@ -5386,7 +5386,10 @@ qla2x00_update_fcport(scsi_qla_host_t *v
+ 	fcport->login_retry = vha->hw->login_retry_count;
+ 	fcport->flags &= ~(FCF_LOGIN_NEEDED | FCF_ASYNC_SENT);
+ 	fcport->deleted = 0;
+-	fcport->logout_on_delete = 1;
++	if (vha->hw->current_topology == ISP_CFG_NL)
++		fcport->logout_on_delete = 0;
++	else
++		fcport->logout_on_delete = 1;
+ 	fcport->n2n_chip_reset = fcport->n2n_link_reset_cnt = 0;
+ 
+ 	switch (vha->hw->current_topology) {

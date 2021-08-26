@@ -1,0 +1,36 @@
+From 021c29815119350ed98756fe393e418ff6a1a969 Mon Sep 17 00:00:00 2001
+From: Bart Van Assche <bvanassche@acm.org>
+Date: Thu, 26 Dec 2019 00:21:37 +0000
+Subject: [PATCH] qla2x00t-32gbit: Fix driver unload hang
+
+This patch fixes driver unload hang by removing msleep()
+
+Fixes: d74595278f4ab ("scsi: qla2xxx: Add multiple queue pair functionality.")
+Cc: stable@vger.kernel.org
+Link: https://lore.kernel.org/r/20191105150657.8092-5-hmadhani@marvell.com
+Reviewed-by: Ewan D. Milne <emilne@redhat.com>
+Signed-off-by: Quinn Tran <qutran@marvell.com>
+Signed-off-by: Himanshu Madhani <hmadhani@marvell.com>
+Signed-off-by: Martin K. Petersen <martin.petersen@oracle.com>
+
+[ commit dd322b7f3efc8cda085bb60eadc4aee6324eadd8 upstream ]
+
+
+git-svn-id: http://svn.code.sf.net/p/scst/svn/trunk@8714 d57e44dd-8a1f-0410-8b47-8ef2f437770f
+---
+ qla2x00t-32gbit/qla_init.c | 2 --
+ 1 file changed, 2 deletions(-)
+
+Index: scst-3.4.x/qla2x00t-32gbit/qla_init.c
+===================================================================
+--- scst-3.4.x.orig/qla2x00t-32gbit/qla_init.c
++++ scst-3.4.x/qla2x00t-32gbit/qla_init.c
+@@ -9034,8 +9034,6 @@ int qla2xxx_delete_qpair(struct scsi_qla
+ 	struct qla_hw_data *ha = qpair->hw;
+ 
+ 	qpair->delete_in_progress = 1;
+-	while (atomic_read(&qpair->ref_count))
+-		msleep(500);
+ 
+ 	ret = qla25xx_delete_req_que(vha, qpair->req);
+ 	if (ret != QLA_SUCCESS)

@@ -1,0 +1,43 @@
+From 341ef8cf2c1412e8a757aba4ed3607694e5f3b49 Mon Sep 17 00:00:00 2001
+From: Bart Van Assche <bvanassche@acm.org>
+Date: Thu, 26 Dec 2019 00:35:23 +0000
+Subject: [PATCH] qla2x00t-32gbit: Send Notify ACK after N2N PLOGI
+
+qlt_handle_login schedules session for deletion even if a login is in
+progress. That causes login bouncing, i.e. a few logins are made before it
+settles down.
+
+Complete the first login by sending Notify Acknowledge IOCB via
+qlt_plogi_ack_unref if the session is pending login completion.
+
+Fixes: 9cd883f07a54 ("scsi: qla2xxx: Fix session cleanup for N2N")
+Cc: Krishna Kant <krishna.kant@purestorage.com>
+Cc: Alexei Potashnik <alexei@purestorage.com>
+Link: https://lore.kernel.org/r/20191125165702.1013-11-r.bolshakov@yadro.com
+Acked-by: Quinn Tran <qutran@marvell.com>
+Acked-by: Himanshu Madhani <hmadhani@marvell.com>
+Reviewed-by: Hannes Reinecke <hare@suse.de>
+Tested-by: Hannes Reinecke <hare@suse.de>
+Signed-off-by: Roman Bolshakov <r.bolshakov@yadro.com>
+Signed-off-by: Martin K. Petersen <martin.petersen@oracle.com>
+
+[ commit 5e6b01d84b9d20bcd77fc7c4733a2a4149bf220a upstream ]
+
+
+git-svn-id: http://svn.code.sf.net/p/scst/svn/trunk@8738 d57e44dd-8a1f-0410-8b47-8ef2f437770f
+---
+ qla2x00t-32gbit/qla_target.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+Index: scst-3.4.x/qla2x00t-32gbit/qla_target.c
+===================================================================
+--- scst-3.4.x.orig/qla2x00t-32gbit/qla_target.c
++++ scst-3.4.x/qla2x00t-32gbit/qla_target.c
+@@ -4875,6 +4875,7 @@ static int qlt_handle_login(struct scsi_
+ 
+ 	switch (sess->disc_state) {
+ 	case DSC_DELETED:
++	case DSC_LOGIN_PEND:
+ 		qlt_plogi_ack_unref(vha, pla);
+ 		break;
+ 

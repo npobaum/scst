@@ -1,0 +1,96 @@
+From 9d2b5a9184787e212ccce51f3193e44a7b34dba5 Mon Sep 17 00:00:00 2001
+From: Bart Van Assche <bvanassche@acm.org>
+Date: Thu, 26 Dec 2019 00:40:05 +0000
+Subject: [PATCH] qla2x00t-32gbit: Correct fcport flags handling
+
+This patch fixes some instances of FCF_ASYNC_{SENT|ACTIVE} flag setting and
+clearning were missing.
+
+Link: https://lore.kernel.org/r/20191217220617.28084-10-hmadhani@marvell.com
+Signed-off-by: Shyam Sundar <ssundar@marvell.com>
+Signed-off-by: Himanshu Madhani <hmadhani@marvell.com>
+Signed-off-by: Martin K. Petersen <martin.petersen@oracle.com>
+
+[ commit 0333e5f4f5d3edb2d0f43ea0f4befd20aaf812b4 upstream ]
+
+
+git-svn-id: http://svn.code.sf.net/p/scst/svn/trunk@8750 d57e44dd-8a1f-0410-8b47-8ef2f437770f
+---
+ qla2x00t-32gbit/qla_gs.c   | 4 ----
+ qla2x00t-32gbit/qla_init.c | 3 ++-
+ qla2x00t-32gbit/qla_iocb.c | 3 ++-
+ 3 files changed, 4 insertions(+), 6 deletions(-)
+
+Index: scst-3.4.x/qla2x00t-32gbit/qla_gs.c
+===================================================================
+--- scst-3.4.x.orig/qla2x00t-32gbit/qla_gs.c
++++ scst-3.4.x/qla2x00t-32gbit/qla_gs.c
+@@ -2963,7 +2963,6 @@ int qla24xx_post_gpsc_work(struct scsi_q
+ 		return QLA_FUNCTION_FAILED;
+ 
+ 	e->u.fcport.fcport = fcport;
+-	fcport->flags |= FCF_ASYNC_ACTIVE;
+ 	return qla2x00_post_work(vha, e);
+ }
+ 
+@@ -3097,9 +3096,7 @@ int qla24xx_async_gpsc(scsi_qla_host_t *
+ 
+ done_free_sp:
+ 	sp->free(sp);
+-	fcport->flags &= ~FCF_ASYNC_SENT;
+ done:
+-	fcport->flags &= ~FCF_ASYNC_ACTIVE;
+ 	return rval;
+ }
+ 
+@@ -4464,7 +4461,6 @@ int qla24xx_async_gfpnid(scsi_qla_host_t
+ 
+ done_free_sp:
+ 	sp->free(sp);
+-	fcport->flags &= ~FCF_ASYNC_SENT;
+ done:
+ 	return rval;
+ }
+Index: scst-3.4.x/qla2x00t-32gbit/qla_init.c
+===================================================================
+--- scst-3.4.x.orig/qla2x00t-32gbit/qla_init.c
++++ scst-3.4.x/qla2x00t-32gbit/qla_init.c
+@@ -1118,8 +1118,8 @@ int qla24xx_async_gnl(struct scsi_qla_ho
+ 
+ done_free_sp:
+ 	sp->free(sp);
+-	fcport->flags &= ~FCF_ASYNC_SENT;
+ done:
++	fcport->flags &= ~(FCF_ASYNC_ACTIVE | FCF_ASYNC_SENT);
+ 	return rval;
+ }
+ 
+@@ -1353,6 +1353,7 @@ done_free_sp:
+ 	sp->free(sp);
+ 	fcport->flags &= ~FCF_ASYNC_SENT;
+ done:
++	fcport->flags &= ~FCF_ASYNC_ACTIVE;
+ 	qla24xx_post_gpdb_work(vha, fcport, opt);
+ 	return rval;
+ }
+Index: scst-3.4.x/qla2x00t-32gbit/qla_iocb.c
+===================================================================
+--- scst-3.4.x.orig/qla2x00t-32gbit/qla_iocb.c
++++ scst-3.4.x/qla2x00t-32gbit/qla_iocb.c
+@@ -2925,6 +2925,7 @@ qla24xx_els_dcmd2_iocb(scsi_qla_host_t *
+ 	if (!sp) {
+ 		ql_log(ql_log_info, vha, 0x70e6,
+ 		 "SRB allocation failed\n");
++		fcport->flags &= ~FCF_ASYNC_ACTIVE;
+ 		return -ENOMEM;
+ 	}
+ 
+@@ -3001,7 +3002,7 @@ qla24xx_els_dcmd2_iocb(scsi_qla_host_t *
+ 	}
+ 
+ out:
+-	fcport->flags &= ~(FCF_ASYNC_SENT);
++	fcport->flags &= ~(FCF_ASYNC_SENT | FCF_ASYNC_ACTIVE);
+ 	qla2x00_els_dcmd2_free(vha, &elsio->u.els_plogi);
+ 	sp->free(sp);
+ done:

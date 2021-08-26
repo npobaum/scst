@@ -1,0 +1,38 @@
+From: Quinn Tran <qutran@marvell.com>
+
+On Zone Disable, certain switch would ignore all
+commands. This cause timeout for both switch
+scan command and abort of that command. On detection
+of this condition, all sessions will be shutdown.
+
+Signed-off-by: Quinn Tran <qutran@marvell.com>
+Signed-off-by: Himanshu Madhani <hmadhani@marvell.com>
+Signed-off-by: Nilesh Javali <njavali@marvell.com>
+Reviewed-by: Himanshu Madhani <himanshu.madhani@oracle.com>
+---
+ qla2x00t-32gbit/qla_gs.c | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)
+
+Index: scst-3.4.x/qla2x00t-32gbit/qla_gs.c
+===================================================================
+--- scst-3.4.x.orig/qla2x00t-32gbit/qla_gs.c
++++ scst-3.4.x/qla2x00t-32gbit/qla_gs.c
+@@ -3909,6 +3909,18 @@ static void qla2x00_async_gpnft_gnnft_sp
+ 		unsigned long flags;
+ 		const char *name = sp->name;
+ 
++		if (res == QLA_OS_TIMER_EXPIRED) {
++			/* switch is ignoring all commands.
++			 * This might be a zone disable behavior.
++			 * This means we hit 64s timeout.
++			 * 22s GPNFT + 44s Abort = 64s
++			 */
++			ql_dbg(ql_dbg_disc, vha, 0xffff,
++			       "%s: Switch Zone check please .\n",
++			       name);
++			qla2x00_mark_all_devices_lost(vha);
++		}
++
+ 		/*
+ 		 * We are in an Interrupt context, queue up this
+ 		 * sp for GNNFT_DONE work. This will allow all

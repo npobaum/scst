@@ -1,0 +1,38 @@
+From cbe98a9ce7908043b0ade12509dd3be0064ba294 Mon Sep 17 00:00:00 2001
+From: Bart Van Assche <bvanassche@acm.org>
+Date: Thu, 26 Dec 2019 00:41:45 +0000
+Subject: [PATCH] qla2x00t-32gbit: Fix mtcp dump collection failure
+
+MTCP dump failed due to MB Reg 10 was picking garbage data from stack
+memory.
+
+Fixes: 81178772b636a ("[SCSI] qla2xxx: Implemetation of mctp.")
+Cc: stable@vger.kernel.org
+Link: https://lore.kernel.org/r/20191217220617.28084-14-hmadhani@marvell.com
+Signed-off-by: Quinn Tran <qutran@marvell.com>
+Signed-off-by: Himanshu Madhani <hmadhani@marvell.com>
+Signed-off-by: Martin K. Petersen <martin.petersen@oracle.com>
+
+[ commit 7ae8c12cb1a5278795afbefabc67b119fe769b61 upstream ]
+
+
+git-svn-id: http://svn.code.sf.net/p/scst/svn/trunk@8754 d57e44dd-8a1f-0410-8b47-8ef2f437770f
+---
+ qla2x00t-32gbit/qla_mbx.c | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
+
+Index: scst-3.4.x/qla2x00t-32gbit/qla_mbx.c
+===================================================================
+--- scst-3.4.x.orig/qla2x00t-32gbit/qla_mbx.c
++++ scst-3.4.x/qla2x00t-32gbit/qla_mbx.c
+@@ -6155,9 +6155,8 @@ qla2x00_dump_mctp_data(scsi_qla_host_t *
+ 	mcp->mb[7] = LSW(MSD(req_dma));
+ 	mcp->mb[8] = MSW(addr);
+ 	/* Setting RAM ID to valid */
+-	mcp->mb[10] |= BIT_7;
+ 	/* For MCTP RAM ID is 0x40 */
+-	mcp->mb[10] |= 0x40;
++	mcp->mb[10] = BIT_7 | 0x40;
+ 
+ 	mcp->out_mb |= MBX_10|MBX_8|MBX_7|MBX_6|MBX_5|MBX_4|MBX_3|MBX_2|MBX_1|
+ 	    MBX_0;

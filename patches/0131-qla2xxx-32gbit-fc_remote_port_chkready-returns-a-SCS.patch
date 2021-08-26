@@ -1,0 +1,39 @@
+From fca3497c5918fdedfaea88d08f6005f42518e1ef Mon Sep 17 00:00:00 2001
+From: Bart Van Assche <bvanassche@acm.org>
+Date: Mon, 15 Mar 2021 03:11:35 +0000
+Subject: [PATCH] qla2xxx-32gbit: fc_remote_port_chkready() returns a SCSI
+ result value
+
+fc_remote_port_chkready() returns a SCSI result value, not the port
+status. Fix the value returned when the remote port isn't set.
+
+Link: https://lore.kernel.org/r/20210113090500.129644-34-hare@suse.de
+Reviewed-by: Christoph Hellwig <hch@lst.de>
+Reviewed-by: Himanshu Madhani <himanshu.madhani@oracle.com>
+Signed-off-by: Hannes Reinecke <hare@suse.de>
+Signed-off-by: Martin K. Petersen <martin.petersen@oracle.com>
+
+[ commit 6098c3005d5a39c39331ca6c3d9fa7525247166c upstream ]
+
+
+git-svn-id: http://svn.code.sf.net/p/scst/svn/trunk@9354 d57e44dd-8a1f-0410-8b47-8ef2f437770f
+---
+ qla2x00t-32gbit/qla_os.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/qla2x00t-32gbit/qla_os.c b/qla2x00t-32gbit/qla_os.c
+index 64be724b..0473cf2e 100644
+--- a/qla2x00t-32gbit/qla_os.c
++++ b/qla2x00t-32gbit/qla_os.c
+@@ -999,7 +999,7 @@ qla2xxx_mqueuecommand(struct Scsi_Host *host, struct scsi_cmnd *cmd,
+ 	srb_t *sp;
+ 	int rval;
+ 
+-	rval = rport ? fc_remote_port_chkready(rport) : FC_PORTSTATE_OFFLINE;
++	rval = rport ? fc_remote_port_chkready(rport) : (DID_NO_CONNECT << 16);
+ 	if (rval) {
+ 		cmd->result = rval;
+ 		ql_dbg(ql_dbg_io + ql_dbg_verbose, vha, 0x3076,
+-- 
+2.26.3
+

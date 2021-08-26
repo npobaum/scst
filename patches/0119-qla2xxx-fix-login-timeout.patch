@@ -1,0 +1,60 @@
+From: Quinn Tran <qutran@marvell.com>
+
+Multipath errors were seen during failback due to login timeout.
+The remote device sent LOGO, the local host teared down the session
+and did relogin. The RSCN arrived indicates remote device is going
+through failover after which the relogin is in a 20s timeout phase.
+At this point the driver is stuck in the relogin process.
+Add a fix to delete the session as part of abort/flush the login.
+
+Signed-off-by: Quinn Tran <qutran@marvell.com>
+Signed-off-by: Nilesh Javali <njavali@marvell.com>
+---
+ qla2x00t-32gbit/qla_gs.c     | 19 ++++++++++++++++---
+ qla2x00t-32gbit/qla_target.c |  2 +-
+ 2 files changed, 17 insertions(+), 4 deletions(-)
+
+Index: scst-3.4.x/qla2x00t-32gbit/qla_gs.c
+===================================================================
+--- scst-3.4.x.orig/qla2x00t-32gbit/qla_gs.c
++++ scst-3.4.x/qla2x00t-32gbit/qla_gs.c
+@@ -3692,10 +3692,23 @@ login_logout:
+ 		}
+ 
+ 		if (fcport->scan_state != QLA_FCPORT_FOUND) {
++			bool do_delete = false;
++
++			if (fcport->scan_needed &&
++			    fcport->disc_state == DSC_LOGIN_PEND) {
++				/* his cable just got disconnected after we
++				 * send him a login. Do delete to prevent
++				 * timeout
++				 */
++				fcport->logout_on_delete = 1;
++				do_delete = true;
++			}
++
+ 			fcport->scan_needed = 0;
+-			if ((qla_dual_mode_enabled(vha) ||
+-				qla_ini_mode_enabled(vha)) &&
+-			    atomic_read(&fcport->state) == FCS_ONLINE) {
++			if (((qla_dual_mode_enabled(vha) ||
++			      qla_ini_mode_enabled(vha)) &&
++			    atomic_read(&fcport->state) == FCS_ONLINE) ||
++				do_delete) {
+ 				if (fcport->loop_id != FC_NO_LOOP_ID) {
+ 					if (fcport->flags & FCF_FCP2_DEVICE)
+ 						fcport->logout_on_delete = 0;
+Index: scst-3.4.x/qla2x00t-32gbit/qla_target.c
+===================================================================
+--- scst-3.4.x.orig/qla2x00t-32gbit/qla_target.c
++++ scst-3.4.x/qla2x00t-32gbit/qla_target.c
+@@ -1284,7 +1284,7 @@ void qlt_schedule_sess_for_deletion(stru
+ 
+ 	qla24xx_chk_fcp_state(sess);
+ 
+-	ql_dbg(ql_dbg_tgt, sess->vha, 0xe001,
++	ql_dbg(ql_dbg_disc, sess->vha, 0xe001,
+ 	    "Scheduling sess %p for deletion %8phC\n",
+ 	    sess, sess->port_name);
+ 

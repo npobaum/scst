@@ -1,0 +1,117 @@
+Index: scst-3.4.x/Makefile
+===================================================================
+--- scst-3.4.x.orig/Makefile
++++ scst-3.4.x/Makefile
+@@ -41,7 +41,7 @@ SCST_DIR=scst
+ DOC_DIR=doc
+ SCSTADM_DIR=scstadmin
+ QLA_INI_DIR=qla2x00t
+-QLA_DIR=qla2x00t/qla2x00-target
++QLA_DIR=qla2x00t-32gbit/qla2x00-target
+ LSI_DIR=mpt
+ USR_DIR=usr
+ SRP_DIR=srpt
+Index: scst-3.4.x/qla2x00t-32gbit/Makefile
+===================================================================
+--- scst-3.4.x.orig/qla2x00t-32gbit/Makefile
++++ scst-3.4.x/qla2x00t-32gbit/Makefile
+@@ -53,8 +53,8 @@ ifneq ($(CONFIG_SCSI_QLA2XXX_TARGET),)
+ ccflags-y += -DCONFIG_SCSI_QLA2XXX_TARGET=$(CONFIG_SCSI_QLA2XXX_TARGET)
+ endif
+ 
+-obj-m := qla2xxx_scst.o
+-qla2xxx_scst-objs := \
++obj-m := qla2xxx.o
++qla2xxx-objs := \
+ 		qla_os.o qla_init.o qla_mbx.o qla_iocb.o qla_isr.o qla_gs.o \
+ 		qla_dbg.o qla_sup.o qla_attr.o qla_mid.o qla_dfs.o qla_bsg.o \
+ 		qla_nx.o qla_mr.o qla_nx2.o qla_target.o qla_tmpl.o qla_nvme.o
+@@ -71,7 +71,7 @@ install: all
+ 		CONFIG_MODULE_SIG_ALL= modules_install
+ 
+ uninstall:
+-	rm -f $(INSTALL_DIR)/qla2xxx_scst.ko
++	rm -f $(INSTALL_DIR)/qla2xxx.ko
+ 	-/sbin/depmod -b $(INSTALL_MOD_PATH)/ -a $(KVER)
+ 
+ ########## END OUT-OF-TREE RULES ##########
+Index: scst-3.4.x/qla2x00t-32gbit/qla2x00-target/Makefile
+===================================================================
+--- scst-3.4.x.orig/qla2x00t-32gbit/qla2x00-target/Makefile
++++ scst-3.4.x/qla2x00t-32gbit/qla2x00-target/Makefile
+@@ -101,12 +101,14 @@ endif
+ 	$(MAKE) -C $(KDIR) M=$(shell pwd) BUILD_INI=m		\
+ 	  $$([ -n "$(DEPMOD)" ] && echo "DEPMOD=$(DEPMOD)")	\
+ 	  CONFIG_MODULE_SIG_ALL= modules_install
++	mv $(INSTALL_DIR)/qla2x00tgt.ko $(INSTALL_DIR)/scst_qla2xxx.ko
++	-/sbin/depmod -b $(INSTALL_MOD_PATH)/ -a $(KVER)
+ 
+ uninstall:
+ ifneq ($(BUILD_2X_MODULE),)
+ 	$(MAKE) M=$(QLA2XXX_DIR) -C $(QLA2XXX_DIR) $@
+ endif
+-	rm -f $(INSTALL_DIR)/qla2[23x]00tgt.ko
++	rm -f $(INSTALL_DIR)/*qla2xxx.ko
+ 	-/sbin/depmod -b $(INSTALL_MOD_PATH)/ -a $(KVER)
+ 
+ ifneq ($(BUILD_2X_MODULE),)
+Index: scst-3.4.x/debian/rules
+===================================================================
+--- scst-3.4.x.orig/debian/rules
++++ scst-3.4.x/debian/rules
+@@ -13,7 +13,7 @@ export DH_VERBOSE = 1
+ # package maintainers to append LDFLAGS
+ #export DEB_LDFLAGS_MAINT_APPEND = -Wl,--as-needed
+ 
+-SUBDIRS=scst fcst iscsi-scst qla2x00t/qla2x00-target scst_local scstadmin srpt
++SUBDIRS=scst fcst iscsi-scst qla2x00t-32gbit/qla2x00-target scst_local scstadmin srpt
+ DESTDIR=$(CURDIR)/debian/tmp
+ VERSION:=$(shell head -n1 debian/changelog | sed 's/.*(\([0-9.]*\).*).*/\1/')
+ 
+@@ -35,7 +35,7 @@ build:
+ 	{								\
+ 		echo dkms.conf &&					\
+ 		echo Makefile &&					\
+-		for d in fcst iscsi-scst qla2x00t scst scst_local srpt; do\
++		for d in fcst iscsi-scst qla2x00t-32gbit scst scst_local srpt; do\
+ 			echo $$d;					\
+ 		done;							\
+ 	} | sed "s,^,usr/src/scst-$(VERSION)/," >debian/scst-dkms.install
+@@ -69,7 +69,7 @@ install:
+ 	cp debian/scst.dkms						\
+ 		$(DESTDIR)/usr/src/scst-$(VERSION)/dkms.conf &&		\
+ 	scripts/list-source-files |					\
+-	grep -E '^Makefile$$|^(fcst|iscsi-scst|qla2x00t|scst|scst_local|srpt)/'|\
++	grep -E '^Makefile$$|^(fcst|iscsi-scst|qla2x00t-32gbit|scst|scst_local|srpt)/'|\
+ 	tar -T- -cf- |							\
+ 	tar -C $(DESTDIR)/usr/src/scst-$(VERSION) -xf- &&		\
+ 	find $(DESTDIR) -type f -print0 | xargs -0 -r chmod 0644 &&	\
+Index: scst-3.4.x/debian/scst.dkms.in
+===================================================================
+--- scst-3.4.x.orig/debian/scst.dkms.in
++++ scst-3.4.x/debian/scst.dkms.in
+@@ -1,7 +1,7 @@
+ PACKAGE_VERSION="${PACKAGE_VERSION}"
+ PACKAGE_NAME="scst"
+ AUTOINSTALL=yes
+-MAKE[0]="export KVER=${kernelver} KDIR=${kernel_source_dir} BUILD_2X_MODULE=y CONFIG_SCSI_QLA_FC=y CONFIG_SCSI_QLA2XXX_TARGET=y && make 2release && make -sC scst && make -sC fcst && make -sC iscsi-scst && make -sC qla2x00t/qla2x00-target && make -sC scst_local && make -sC srpt"
++MAKE[0]="export KVER=${kernelver} KDIR=${kernel_source_dir} BUILD_2X_MODULE=y CONFIG_SCSI_QLA_FC=y CONFIG_SCSI_QLA2XXX_TARGET=y && make 2release && make -sC scst && make -sC fcst && make -sC iscsi-scst && make -sC qla2x00t-32gbit/qla2x00-target && make -sC scst_local && make -sC srpt"
+ CLEAN="make clean"
+ # Remove any existing ib_srpt.ko kernel modules
+ PRE_INSTALL="find /lib/modules/${kernelver} -name ib_srpt.ko -exec rm {} \;"
+@@ -20,11 +20,11 @@ DEST_MODULE_LOCATION[2]="/extra"
+ BUILT_MODULE_NAME[3]="isert-scst"
+ BUILT_MODULE_LOCATION[3]="iscsi-scst/kernel/isert-scst"
+ DEST_MODULE_LOCATION[3]="/extra"
+-BUILT_MODULE_NAME[4]="qla2x00tgt"
+-BUILT_MODULE_LOCATION[4]="qla2x00t/qla2x00-target"
++BUILT_MODULE_NAME[4]="scst_qla2xxx"
++BUILT_MODULE_LOCATION[4]="qla2x00t-32gbit/qla2x00-target"
+ DEST_MODULE_LOCATION[4]="/extra"
+-BUILT_MODULE_NAME[5]="qla2xxx_scst"
+-BUILT_MODULE_LOCATION[5]="qla2x00t"
++BUILT_MODULE_NAME[5]="qla2xxx"
++BUILT_MODULE_LOCATION[5]="qla2x00t-32gbit"
+ DEST_MODULE_LOCATION[5]="/extra"
+ BUILT_MODULE_NAME[6]="scst_cdrom"
+ BUILT_MODULE_LOCATION[6]="scst/src/dev_handlers"

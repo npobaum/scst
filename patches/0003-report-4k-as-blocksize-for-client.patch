@@ -1,0 +1,13 @@
+Index: scst-3.4.x/scst/src/dev_handlers/scst_vdisk.c
+===================================================================
+--- scst-3.4.x.orig/scst/src/dev_handlers/scst_vdisk.c
++++ scst-3.4.x/scst/src/dev_handlers/scst_vdisk.c
+@@ -5041,7 +5041,7 @@ static enum compl_status_e vdisk_exec_re
+ 	}
+ 
+ 	/* LOGICAL BLOCKS PER PHYSICAL BLOCK EXPONENT */
+-	physical_blocksize = q ? queue_physical_block_size(q) : 4096;
++	physical_blocksize = 4096;
+ 	buffer[13] = max(ilog2(physical_blocksize) - ilog2(blocksize), 0);
+ 
+ 	if (virt_dev->thin_provisioned) {

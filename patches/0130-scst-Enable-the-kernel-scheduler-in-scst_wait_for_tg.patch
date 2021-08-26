@@ -1,0 +1,35 @@
+From f59fe00eb112ff7d949cfb3c7d31064bc299cc26 Mon Sep 17 00:00:00 2001
+From: Bart Van Assche <bvanassche@acm.org>
+Date: Wed, 14 Apr 2021 20:35:40 +0000
+Subject: [PATCH] scst: Enable the kernel scheduler in scst_wait_for_tgt_devs()
+
+This patch should fix the following bug:
+
+INFO: rcu_sched self-detected stall on CPU ...
+...
+scst_wait_for_tgt_devs()
+
+Reported-by: Chesnokov Gleb <Chesnokov.G@raidix.com>
+
+
+git-svn-id: http://svn.code.sf.net/p/scst/svn/trunk@9381 d57e44dd-8a1f-0410-8b47-8ef2f437770f
+---
+ scst/src/scst_lib.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/scst/src/scst_lib.c b/scst/src/scst_lib.c
+index e443979e..2a0fdfb7 100644
+--- a/scst/src/scst_lib.c
++++ b/scst/src/scst_lib.c
+@@ -4657,7 +4657,7 @@ static int scst_tgt_devs_cmds(struct list_head *tgt_dev_list)
+ static void scst_wait_for_tgt_devs(struct list_head *tgt_dev_list)
+ {
+ 	while (scst_tgt_devs_cmds(tgt_dev_list) > 0)
+-		mdelay(100);
++		msleep(100);
+ }
+ 
+ int scst_acg_del_lun(struct scst_acg *acg, uint64_t lun,
+-- 
+2.26.3
+

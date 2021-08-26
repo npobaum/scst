@@ -1,0 +1,24 @@
+From: Quinn Tran <qutran@marvell.com>
+
+Perform implicit logout to flush io on zone disable.
+
+Signed-off-by: Quinn Tran <qutran@marvell.com>
+Signed-off-by: Himanshu Madhani <hmadhani@marvell.com>
+Signed-off-by: Nilesh Javali <njavali@marvell.com>
+Reviewed-by: Himanshu Madhani <himanshu.madhani@oracle.com>
+---
+ qla2x00t-32gbit/qla_gs.c | 1 -
+ 1 file changed, 1 deletion(-)
+
+Index: scst-3.4.x/qla2x00t-32gbit/qla_gs.c
+===================================================================
+--- scst-3.4.x.orig/qla2x00t-32gbit/qla_gs.c
++++ scst-3.4.x/qla2x00t-32gbit/qla_gs.c
+@@ -3596,7 +3596,6 @@ void qla24xx_async_gnnft_done(scsi_qla_h
+ 			list_for_each_entry(fcport, &vha->vp_fcports, list) {
+ 				if ((fcport->flags & FCF_FABRIC_DEVICE) != 0) {
+ 					fcport->scan_state = QLA_FCPORT_SCAN;
+-					fcport->logout_on_delete = 0;
+ 				}
+ 			}
+ 			goto login_logout;

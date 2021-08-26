@@ -1,0 +1,28 @@
+From be6191fb9203d38d588446b03291bd727b45c8a2 Mon Sep 17 00:00:00 2001
+From: Bart Van Assche <bvanassche@acm.org>
+Date: Sat, 29 Aug 2020 03:17:06 +0000
+Subject: [PATCH] debian: make scst-dkms provide scst
+
+Signed-off-by: Konstantin Kharlamov <Hi-Angel@yandex.ru>
+
+
+git-svn-id: http://svn.code.sf.net/p/scst/svn/trunk@9123 d57e44dd-8a1f-0410-8b47-8ef2f437770f
+---
+ debian/control | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/debian/control b/debian/control
+index ccfd3f44..2286c3d3 100644
+--- a/debian/control
++++ b/debian/control
+@@ -21,6 +21,7 @@ Package: scst-dkms
+ Architecture: all
+ Depends: ${misc:Depends}, dkms
+ Conflicts: scst
++Provides: scst
+ Description: Generic SCSI target framework
+  SCST is a SCSI target framework that allows local block device data to be
+  accessed over a storage network via the iSCSI, FC, SRP or FCoE protocol.
+-- 
+2.26.2
+

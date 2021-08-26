@@ -1,0 +1,75 @@
+From 52370acb84856992e0dad86613fc9ca170ef58d1 Mon Sep 17 00:00:00 2001
+From: Bart Van Assche <bvanassche@acm.org>
+Date: Thu, 26 Dec 2019 00:43:09 +0000
+Subject: [PATCH] qla2x00t-32gbit: Reduce the size of struct qla_tgt_cmd
+
+git-svn-id: http://svn.code.sf.net/p/scst/svn/trunk@8757 d57e44dd-8a1f-0410-8b47-8ef2f437770f
+---
+ qla2x00t-32gbit/qla2x00-target/scst_qla2xxx.c | 2 +-
+ qla2x00t-32gbit/qla_target.c                  | 4 ++--
+ qla2x00t-32gbit/qla_target.h                  | 3 ++-
+ 3 files changed, 5 insertions(+), 4 deletions(-)
+
+Index: scst-3.4.x/qla2x00t-32gbit/qla2x00-target/scst_qla2xxx.c
+===================================================================
+--- scst-3.4.x.orig/qla2x00t-32gbit/qla2x00-target/scst_qla2xxx.c
++++ scst-3.4.x/qla2x00t-32gbit/qla2x00-target/scst_qla2xxx.c
+@@ -392,7 +392,6 @@ static struct qla_tgt_cmd *sqa_qla2xxx_g
+ #endif
+ 	cmd->sess = sess;
+ 	cmd->vha = sess->vha;
+-	cmd->rel_cmd = sqa_qla2xxx_rel_cmd;
+ 	return cmd;
+ }
+ 
+@@ -1894,6 +1893,7 @@ static struct qla_tgt_func_tmpl sqa_qla2
+ 	.handle_data		    = sqa_qla2xxx_handle_data,
+ 	.handle_tmr		    = sqa_qla2xxx_handle_tmr,
+ 	.get_cmd		    = sqa_qla2xxx_get_cmd,
++	.rel_cmd		    = sqa_qla2xxx_rel_cmd,
+ 	.free_cmd		    = sqa_qla2xxx_free_cmd,
+ 	.free_mcmd		    = sqa_qla2xxx_free_mcmd,
+ 	.free_session		    = sqa_qla2xxx_free_session,
+Index: scst-3.4.x/qla2x00t-32gbit/qla_target.c
+===================================================================
+--- scst-3.4.x.orig/qla2x00t-32gbit/qla_target.c
++++ scst-3.4.x/qla2x00t-32gbit/qla_target.c
+@@ -3872,7 +3872,7 @@ void qlt_free_cmd(struct qla_tgt_cmd *cm
+ 		return;
+ 	}
+ 	cmd->jiffies_at_free = get_jiffies_64();
+-	cmd->rel_cmd(cmd);
++	cmd->vha->hw->tgt.tgt_ops->rel_cmd(cmd);
+ }
+ EXPORT_SYMBOL(qlt_free_cmd);
+ 
+@@ -4209,7 +4209,7 @@ out_term:
+ 	qlt_send_term_exchange(qpair, NULL, &cmd->atio, 1, 0);
+ 
+ 	qlt_decr_num_pend_cmds(vha);
+-	cmd->rel_cmd(cmd);
++	cmd->vha->hw->tgt.tgt_ops->rel_cmd(cmd);
+ 	spin_unlock_irqrestore(qpair->qp_lock_ptr, flags);
+ 
+ 	ha->tgt.tgt_ops->put_sess(sess);
+Index: scst-3.4.x/qla2x00t-32gbit/qla_target.h
+===================================================================
+--- scst-3.4.x.orig/qla2x00t-32gbit/qla_target.h
++++ scst-3.4.x/qla2x00t-32gbit/qla_target.h
+@@ -700,6 +700,7 @@ struct qla_tgt_func_tmpl {
+ 	int (*handle_tmr)(struct qla_tgt_mgmt_cmd *, u64, uint16_t,
+ 			uint32_t);
+ 	struct qla_tgt_cmd *(*get_cmd)(struct fc_port *);
++	void (*rel_cmd)(struct qla_tgt_cmd *);
+ 	void (*free_cmd)(struct qla_tgt_cmd *);
+ 	void (*free_mcmd)(struct qla_tgt_mgmt_cmd *);
+ 	void (*free_session)(struct fc_port *);
+@@ -969,7 +970,7 @@ struct qla_tgt_cmd {
+ 
+ 	uint64_t jiffies_at_alloc;
+ 	uint64_t jiffies_at_free;
+-	void (*rel_cmd)(struct qla_tgt_cmd *);
++
+ 	enum trace_flags trc_flags;
+ };
+ 

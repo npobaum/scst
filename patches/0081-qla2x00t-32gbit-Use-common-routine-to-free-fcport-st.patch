@@ -1,0 +1,120 @@
+From d65276050d8498b89f414d1c6506decbf08dc360 Mon Sep 17 00:00:00 2001
+From: Bart Van Assche <bvanassche@acm.org>
+Date: Thu, 26 Dec 2019 00:39:13 +0000
+Subject: [PATCH] qla2x00t-32gbit: Use common routine to free fcport struct
+
+This patch does not change any any functionality.
+
+Link: https://lore.kernel.org/r/20191217220617.28084-8-hmadhani@marvell.com
+Signed-off-by: Quinn Tran <qutran@marvell.com>
+Signed-off-by: Himanshu Madhani <hmadhani@marvell.com>
+Signed-off-by: Martin K. Petersen <martin.petersen@oracle.com>
+
+[ commit 3dae220595baa7a9fb582b851b54c10ad6a0cbae upstream ]
+
+
+git-svn-id: http://svn.code.sf.net/p/scst/svn/trunk@8748 d57e44dd-8a1f-0410-8b47-8ef2f437770f
+---
+ qla2x00t-32gbit/qla_bsg.c  | 9 +++++----
+ qla2x00t-32gbit/qla_gbl.h  | 1 +
+ qla2x00t-32gbit/qla_init.c | 2 +-
+ qla2x00t-32gbit/qla_mr.c   | 6 +++---
+ 4 files changed, 10 insertions(+), 8 deletions(-)
+
+Index: scst-3.4.x/qla2x00t-32gbit/qla_bsg.c
+===================================================================
+--- scst-3.4.x.orig/qla2x00t-32gbit/qla_bsg.c
++++ scst-3.4.x/qla2x00t-32gbit/qla_bsg.c
+@@ -83,7 +83,8 @@ void qla2x00_bsg_sp_free(srb_t *sp)
+ 	if (sp->type == SRB_CT_CMD ||
+ 	    sp->type == SRB_FXIOCB_BCMD ||
+ 	    sp->type == SRB_ELS_CMD_HST)
+-		kfree(sp->fcport);
++		qla2x00_free_fcport(sp->fcport);
++
+ 	qla2x00_rel_sp(sp);
+ }
+ 
+@@ -444,7 +445,7 @@ done_unmap_sg:
+ 
+ done_free_fcport:
+ 	if (bsg_request->msgcode == FC_BSG_RPT_ELS)
+-		kfree(fcport);
++		qla2x00_free_fcport(fcport);
+ done:
+ 	return rval;
+ }
+@@ -589,7 +590,7 @@ qla2x00_process_ct(struct bsg_job *bsg_j
+ 	return rval;
+ 
+ done_free_fcport:
+-	kfree(fcport);
++	qla2x00_free_fcport(fcport);
+ done_unmap_sg:
+ 	dma_unmap_sg(&ha->pdev->dev, bsg_job->request_payload.sg_list,
+ 		bsg_job->request_payload.sg_cnt, DMA_TO_DEVICE);
+@@ -2169,7 +2170,7 @@ qlafx00_mgmt_cmd(struct bsg_job *bsg_job
+ 	return rval;
+ 
+ done_free_fcport:
+-	kfree(fcport);
++	qla2x00_free_fcport(fcport);
+ 
+ done_unmap_rsp_sg:
+ 	if (piocb_rqst->flags & SRB_FXDISC_RESP_DMA_VALID)
+Index: scst-3.4.x/qla2x00t-32gbit/qla_gbl.h
+===================================================================
+--- scst-3.4.x.orig/qla2x00t-32gbit/qla_gbl.h
++++ scst-3.4.x/qla2x00t-32gbit/qla_gbl.h
+@@ -201,6 +201,7 @@ extern void qla2x00_free_host(struct scs
+ extern void qla2x00_relogin(struct scsi_qla_host *);
+ extern void qla2x00_do_work(struct scsi_qla_host *);
+ extern void qla2x00_free_fcports(struct scsi_qla_host *);
++extern void qla2x00_free_fcport(fc_port_t *);
+ 
+ extern void qla83xx_schedule_work(scsi_qla_host_t *, int);
+ extern void qla83xx_service_idc_aen(struct work_struct *);
+Index: scst-3.4.x/qla2x00t-32gbit/qla_init.c
+===================================================================
+--- scst-3.4.x.orig/qla2x00t-32gbit/qla_init.c
++++ scst-3.4.x/qla2x00t-32gbit/qla_init.c
+@@ -5248,7 +5248,7 @@ skip_login:
+ 	}
+ 
+ cleanup_allocation:
+-	kfree(new_fcport);
++	qla2x00_free_fcport(new_fcport);
+ 
+ 	if (rval != QLA_SUCCESS) {
+ 		ql_dbg(ql_dbg_disc, vha, 0x2098,
+Index: scst-3.4.x/qla2x00t-32gbit/qla_mr.c
+===================================================================
+--- scst-3.4.x.orig/qla2x00t-32gbit/qla_mr.c
++++ scst-3.4.x/qla2x00t-32gbit/qla_mr.c
+@@ -1210,7 +1210,7 @@ qlafx00_find_all_targets(scsi_qla_host_t
+ 				    fcport->old_tgt_id);
+ 				qla2x00_mark_device_lost(vha, fcport, 0);
+ 				set_bit(LOOP_RESYNC_NEEDED, &vha->dpc_flags);
+-				kfree(new_fcport);
++				qla2x00_free_fcport(new_fcport);
+ 				return rval;
+ 			}
+ 			break;
+@@ -1228,7 +1228,7 @@ qlafx00_find_all_targets(scsi_qla_host_t
+ 			return QLA_MEMORY_ALLOC_FAILED;
+ 	}
+ 
+-	kfree(new_fcport);
++	qla2x00_free_fcport(new_fcport);
+ 	return rval;
+ }
+ 
+@@ -1296,7 +1296,7 @@ qlafx00_configure_all_targets(scsi_qla_h
+ 	/* Free all new device structures not processed. */
+ 	list_for_each_entry_safe(fcport, rmptemp, &new_fcports, list) {
+ 		list_del(&fcport->list);
+-		kfree(fcport);
++		qla2x00_free_fcport(fcport);
+ 	}
+ 
+ 	return rval;

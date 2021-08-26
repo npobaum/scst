@@ -4606,7 +4606,7 @@ static int scst_tgt_devs_cmds(struct list_head *tgt_dev_list)
 static void scst_wait_for_tgt_devs(struct list_head *tgt_dev_list)
 {
 	while (scst_tgt_devs_cmds(tgt_dev_list) > 0)
-		mdelay(100);
+		msleep(100);
 }
 
 int scst_acg_del_lun(struct scst_acg *acg, uint64_t lun,
@@ -5890,6 +5890,8 @@ int scst_prepare_request_sense(struct scst_cmd *orig_cmd)
 	list_add(&rs_cmd->cmd_list_entry, &rs_cmd->cmd_threads->active_cmd_list);
 	wake_up(&rs_cmd->cmd_threads->cmd_list_waitQ);
 	spin_unlock_irq(&rs_cmd->cmd_threads->cmd_list_lock);
+
+	res = 0;
 
 out:
 	TRACE_EXIT_RES(res);
@@ -13984,8 +13986,6 @@ int scst_process_check_condition(struct scst_cmd *cmd)
 
 process_qerr:
 	scst_process_qerr(cmd);
-
-	scst_store_sense(cmd);
 
 	res = 0;
 

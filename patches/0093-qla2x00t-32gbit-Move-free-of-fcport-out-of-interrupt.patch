@@ -1,0 +1,55 @@
+From bdb841a7130d08e69d1a5925c1807aeb10508eb5 Mon Sep 17 00:00:00 2001
+From: Bart Van Assche <bvanassche@acm.org>
+Date: Sat, 7 Mar 2020 21:10:16 +0000
+Subject: [PATCH] qla2x00t-32gbit: Move free of fcport out of interrupt context
+
+This patch moves freeing of fcport out of interrupt context.
+
+Link: https://lore.kernel.org/r/20200212214436.25532-3-hmadhani@marvell.com
+Signed-off-by: Joe Carnuccio <joe.carnuccio@cavium.com>
+Signed-off-by: Himanshu Madhani <hmadhani@marvell.com>
+Signed-off-by: Martin K. Petersen <martin.petersen@oracle.com>
+
+[ commit 054f4382417098b4d0028f8145fa214d448792d7 upstream ]
+
+
+git-svn-id: http://svn.code.sf.net/p/scst/svn/trunk@8787 d57e44dd-8a1f-0410-8b47-8ef2f437770f
+---
+ qla2x00t-32gbit/qla_bsg.c | 14 ++++++++++++--
+ 1 file changed, 12 insertions(+), 2 deletions(-)
+
+diff --git a/qla2x00t-32gbit/qla_bsg.c b/qla2x00t-32gbit/qla_bsg.c
+index 14b3df64..a070c717 100644
+--- a/qla2x00t-32gbit/qla_bsg.c
++++ b/qla2x00t-32gbit/qla_bsg.c
+@@ -32,6 +32,14 @@ static inline void bsg_job_done_backport(struct fc_bsg_job *job, int result,
+ #define bsg_job_done bsg_job_done_backport
+ #endif
+ 
++static void qla2xxx_free_fcport_work(struct work_struct *work)
++{
++	struct fc_port *fcport = container_of(work, typeof(*fcport),
++	    free_work);
++
++	qla2x00_free_fcport(fcport);
++}
++
+ /* BSG support for ELS/CT pass through */
+ void qla2x00_bsg_job_done(srb_t *sp, int res)
+ {
+@@ -82,8 +90,10 @@ void qla2x00_bsg_sp_free(srb_t *sp)
+ 
+ 	if (sp->type == SRB_CT_CMD ||
+ 	    sp->type == SRB_FXIOCB_BCMD ||
+-	    sp->type == SRB_ELS_CMD_HST)
+-		qla2x00_free_fcport(sp->fcport);
++	    sp->type == SRB_ELS_CMD_HST) {
++		INIT_WORK(&sp->fcport->free_work, qla2xxx_free_fcport_work);
++		queue_work(ha->wq, &sp->fcport->free_work);
++	}
+ 
+ 	qla2x00_rel_sp(sp);
+ }
+-- 
+2.24.1
+

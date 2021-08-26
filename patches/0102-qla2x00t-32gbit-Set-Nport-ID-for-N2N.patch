@@ -1,0 +1,94 @@
+From 37e6d53d116b31523979c482a6d743726fab854d Mon Sep 17 00:00:00 2001
+From: Bart Van Assche <bvanassche@acm.org>
+Date: Sat, 7 Mar 2020 21:40:06 +0000
+Subject: [PATCH] qla2x00t-32gbit: Set Nport ID for N2N
+
+When transitioning from loop to N2N, stale NPort ID is not
+re-assigned. Stale ID can collide with remote device.  This patch will
+re-assign NPort ID on N2N is detected.
+
+Link: https://lore.kernel.org/r/20200226224022.24518-18-hmadhani@marvell.com
+Signed-off-by: Himanshu Madhani <hmadhani@marvell.com>
+Signed-off-by: Quinn Tran <qutran@marvell.com>
+Signed-off-by: Martin K. Petersen <martin.petersen@oracle.com>
+
+[ commit ad8a260aa80d4dfa9588fd5d23b71ec922f61c8b upstream ]
+
+
+git-svn-id: http://svn.code.sf.net/p/scst/svn/trunk@8831 d57e44dd-8a1f-0410-8b47-8ef2f437770f
+---
+ qla2x00t-32gbit/qla_mbx.c | 42 +++++++++++++++++++++------------------
+ 1 file changed, 23 insertions(+), 19 deletions(-)
+
+Index: scst-3.4.x/qla2x00t-32gbit/qla_mbx.c
+===================================================================
+--- scst-3.4.x.orig/qla2x00t-32gbit/qla_mbx.c
++++ scst-3.4.x/qla2x00t-32gbit/qla_mbx.c
+@@ -3894,11 +3894,29 @@ qla24xx_report_id_acquisition(scsi_qla_h
+ 				fcport->scan_state = QLA_FCPORT_SCAN;
+ 				fcport->n2n_flag = 0;
+ 			}
++			id.b24 = 0;
++			if (wwn_to_u64(vha->port_name) >
++			    wwn_to_u64(rptid_entry->u.f1.port_name)) {
++				vha->d_id.b24 = 0;
++				vha->d_id.b.al_pa = 1;
++				ha->flags.n2n_bigger = 1;
++
++				id.b.al_pa = 2;
++				ql_dbg(ql_dbg_async, vha, 0x5075,
++				    "Format 1: assign local id %x remote id %x\n",
++				    vha->d_id.b24, id.b24);
++			} else {
++				ql_dbg(ql_dbg_async, vha, 0x5075,
++				    "Format 1: Remote login - Waiting for WWPN %8phC.\n",
++				    rptid_entry->u.f1.port_name);
++				ha->flags.n2n_bigger = 0;
++			}
+ 
+ 			fcport = qla2x00_find_fcport_by_wwpn(vha,
+ 			    rptid_entry->u.f1.port_name, 1);
+ 			spin_unlock_irqrestore(&vha->hw->tgt.sess_lock, flags);
+ 
++
+ 			if (fcport) {
+ 				fcport->plogi_nack_done_deadline = jiffies + HZ;
+ 				fcport->dm_login_expire = jiffies + 2*HZ;
+@@ -3909,6 +3927,11 @@ qla24xx_report_id_acquisition(scsi_qla_h
+ 				if (vha->flags.nvme_enabled)
+ 					fcport->fc4_type |= FS_FC4TYPE_NVME;
+ 
++				if (wwn_to_u64(vha->port_name) >
++				    wwn_to_u64(fcport->port_name)) {
++					fcport->d_id = id;
++				}
++
+ 				switch (fcport->disc_state) {
+ 				case DSC_DELETED:
+ 					set_bit(RELOGIN_NEEDED,
+@@ -3921,25 +3944,6 @@ qla24xx_report_id_acquisition(scsi_qla_h
+ 					break;
+ 				}
+ 			} else {
+-				id.b24 = 0;
+-				if (wwn_to_u64(vha->port_name) >
+-				    wwn_to_u64(rptid_entry->u.f1.port_name)) {
+-					vha->d_id.b24 = 0;
+-					vha->d_id.b.al_pa = 1;
+-					ha->flags.n2n_bigger = 1;
+-					ha->flags.n2n_ae = 0;
+-
+-					id.b.al_pa = 2;
+-					ql_dbg(ql_dbg_async, vha, 0x5075,
+-					    "Format 1: assign local id %x remote id %x\n",
+-					    vha->d_id.b24, id.b24);
+-				} else {
+-					ql_dbg(ql_dbg_async, vha, 0x5075,
+-					    "Format 1: Remote login - Waiting for WWPN %8phC.\n",
+-					    rptid_entry->u.f1.port_name);
+-					ha->flags.n2n_bigger = 0;
+-					ha->flags.n2n_ae = 1;
+-				}
+ 				qla24xx_post_newsess_work(vha, &id,
+ 				    rptid_entry->u.f1.port_name,
+ 				    rptid_entry->u.f1.node_name,

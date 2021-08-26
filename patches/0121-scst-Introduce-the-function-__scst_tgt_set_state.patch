@@ -1,0 +1,67 @@
+From e0c63c52e77a41998deb8168b5468aad981b5992 Mon Sep 17 00:00:00 2001
+From: Bart Van Assche <bvanassche@acm.org>
+Date: Mon, 10 Aug 2020 00:29:09 +0000
+Subject: [PATCH] scst: Introduce the function __scst_tgt_set_state()
+
+This patch does not change any functionality.
+
+
+git-svn-id: http://svn.code.sf.net/p/scst/svn/trunk@9119 d57e44dd-8a1f-0410-8b47-8ef2f437770f
+---
+ scst/src/scst_tg.c | 33 ++++++++++++++++++++++++++-------
+ 1 file changed, 26 insertions(+), 7 deletions(-)
+
+diff --git a/scst/src/scst_tg.c b/scst/src/scst_tg.c
+index e392a3c3..c86910a2 100644
+--- a/scst/src/scst_tg.c
++++ b/scst/src/scst_tg.c
+@@ -963,6 +963,30 @@ out_fail:
+ 	goto out_unlock;
+ }
+ 
++/*
++ * __scst_tgt_set_state - Update the ALUA filter of a LUN
++ * @tg: ALUA target group of which the state is changing.
++ * @tgt_dev: LUN to be updated.
++ * @state: new ALUA state.
++ */
++static void __scst_tgt_set_state(struct scst_target_group *tg,
++	struct scst_tgt_dev *tgt_dev, enum scst_tg_state state)
++{
++	bool gen_ua = state != SCST_TG_STATE_TRANSITIONING;
++	struct scst_tgt *tgt = tgt_dev->sess->tgt;
++	struct scst_dev_group *dg = tg->dg;
++
++	/*
++	 * If the ALUA state transition is caused by an STPG command and if
++	 * the STPG command has been received through the target port of which
++	 * the state is being modified, do not generate a unit attention.
++	 */
++	if (dg->stpg_rel_tgt_id == tgt->rel_tgt_id &&
++	    tid_equal(dg->stpg_transport_id, tgt_dev->sess->transport_id))
++		gen_ua = false;
++	scst_tg_change_tgt_dev_state(tgt_dev, state, gen_ua);
++}
++
+ /*
+  * Update the ALUA filter of those LUNs (tgt_dev) whose target port is a member
+  * of target group @tg and that export a device that is a member of the device
+@@ -992,13 +1016,8 @@ static void __scst_tg_set_state(struct scst_target_group *tg,
+ 			tgt = tgt_dev->sess->tgt;
+ 			list_for_each_entry(tg_tgt, &tg->tgt_list, entry) {
+ 				if (tg_tgt->tgt == tgt) {
+-					bool gen_ua = (state != SCST_TG_STATE_TRANSITIONING);
+-
+-					if ((tg->dg->stpg_rel_tgt_id == tgt_dev->sess->tgt->rel_tgt_id) &&
+-					    tid_equal(tg->dg->stpg_transport_id, tgt_dev->sess->transport_id))
+-						gen_ua = false;
+-					scst_tg_change_tgt_dev_state(tgt_dev,
+-						state, gen_ua);
++					__scst_tgt_set_state(tg, tgt_dev,
++							     state);
+ 					break;
+ 				}
+ 			}
+-- 
+2.26.2
+

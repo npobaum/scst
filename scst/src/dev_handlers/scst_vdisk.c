@@ -73,8 +73,8 @@
 #include "scst_dev_handler.h"
 
 /* 8 byte ASCII Vendor */
-#define SCST_FIO_VENDOR			"SCST_FIO"
-#define SCST_BIO_VENDOR			"SCST_BIO"
+#define SCST_FIO_VENDOR			"BAUM"
+#define SCST_BIO_VENDOR			"BAUM"
 /* 4 byte ASCII Product Revision Level - left aligned */
 #define SCST_FIO_REV			"340 "
 
@@ -5040,7 +5040,7 @@ static enum compl_status_e vdisk_exec_read_capacity16(struct vdisk_cmd_params *p
 	}
 
 	/* LOGICAL BLOCKS PER PHYSICAL BLOCK EXPONENT */
-	physical_blocksize = q ? queue_physical_block_size(q) : 4096;
+	physical_blocksize = 4096;
 	buffer[13] = max(ilog2(physical_blocksize) - ilog2(blocksize), 0);
 
 	if (virt_dev->thin_provisioned) {
@@ -6536,26 +6536,27 @@ static void blockio_on_alua_state_change_start(struct scst_device *dev,
 	enum scst_tg_state old_state, enum scst_tg_state new_state)
 {
 	struct scst_vdisk_dev *virt_dev = dev->dh_priv;
+	const bool close = virt_dev->dev_active &&
+		new_state != SCST_TG_STATE_OPTIMIZED &&
+		new_state != SCST_TG_STATE_NONOPTIMIZED;
 
 	TRACE_ENTRY();
 
+	/* No other fd activity may happen concurrently with this function. */
 	lockdep_assert_alua_lock_held();
 
 	if (!virt_dev->bind_alua_state)
 		return;
 
-	/*
-	 * As required for on_alua_state_change_* callbacks,
-	 * no parallel fd activities could be here.
-	 */
+	PRINT_INFO("dev %s: ALUA state change from %s to %s started,%s closing FD",
+		   dev->virt_name, scst_alua_state_name(old_state),
+		   scst_alua_state_name(new_state), close ? "" : " not");
 
-	TRACE_MGMT_DBG("ALUA state change from %s to %s started, closing FD (dev %s, active %d)",
-		scst_alua_state_name(old_state), scst_alua_state_name(new_state),
-		dev->virt_name, virt_dev->dev_active);
+	if (!close)
+		return;
 
 	virt_dev->dev_active = 0;
 
-	/* Just in case always close */
 	vdisk_close_fd(virt_dev);
 
 	TRACE_EXIT();
@@ -6566,52 +6567,46 @@ static void blockio_on_alua_state_change_finish(struct scst_device *dev,
 	enum scst_tg_state old_state, enum scst_tg_state new_state)
 {
 	struct scst_vdisk_dev *virt_dev = dev->dh_priv;
+	const bool open = !virt_dev->dev_active &&
+		(new_state == SCST_TG_STATE_OPTIMIZED ||
+		 new_state == SCST_TG_STATE_NONOPTIMIZED);
+	int rc = 0;
 
 	TRACE_ENTRY();
 
+	/* No other fd activity may happen concurrently with this function. */
 	lockdep_assert_alua_lock_held();
 
 	if (!virt_dev->bind_alua_state)
 		return;
 
+	PRINT_INFO("dev %s: ALUA state change from %s to %s finished,%s reopening FD",
+		   dev->virt_name, scst_alua_state_name(old_state),
+		   scst_alua_state_name(new_state), open ? "" : " not");
+
+	if (!open)
+		return;
+
+	virt_dev->dev_active = 1;
+
 	/*
-	 * As required for on_alua_state_change_* callbacks,
-	 * no parallel fd activities could be here.
+	 * only reopen fd if tgt_dev_cnt is not zero, otherwise we will
+	 * leak reference.
 	 */
+	if (virt_dev->tgt_dev_cnt)
+		rc = vdisk_open_fd(virt_dev, dev->dev_rd_only);
 
-	if (((new_state == SCST_TG_STATE_OPTIMIZED) ||
-	     (new_state == SCST_TG_STATE_NONOPTIMIZED)) && (virt_dev->fd == NULL)) {
-		/* Try non-optimized as well, it might be new redirection device */
-		int rc = 0;
-
-		TRACE_MGMT_DBG("ALUA state change from %s to %s finished (dev %s, active %d), "
-			"reopening FD", scst_alua_state_name(old_state),
-			scst_alua_state_name(new_state), dev->virt_name, virt_dev->dev_active);
-
-		virt_dev->dev_active = 1;
-
-		/*
-		 * only reopen fd if tgt_dev_cnt is not zero, otherwise we will
-		 * leak reference.
-		 */
-		if (virt_dev->tgt_dev_cnt)
-			rc = vdisk_open_fd(virt_dev, dev->dev_rd_only);
-
-		if (rc == 0) {
-			if (virt_dev->reexam_pending) {
-				rc = vdisk_reexamine(virt_dev);
-				WARN_ON(rc != 0);
-				virt_dev->reexam_pending = 0;
-			}
-		} else {
-			PRINT_ERROR("Unable to open fd on ALUA state change "
-				"to %s (dev %s)", dev->virt_name,
-				scst_alua_state_name(new_state));
+	if (rc == 0) {
+		if (virt_dev->reexam_pending) {
+			rc = vdisk_reexamine(virt_dev);
+			WARN_ON(rc != 0);
+			virt_dev->reexam_pending = 0;
 		}
-	} else
-		TRACE_DBG("ALUA state change from %s to %s finished (dev %s)",
-			scst_alua_state_name(old_state), scst_alua_state_name(new_state),
-			dev->virt_name);
+	} else {
+		PRINT_ERROR("dev %s: opening after ALUA state change to %s failed",
+			    dev->virt_name,
+			    scst_alua_state_name(new_state));
+	}
 
 	TRACE_EXIT();
 	return;
