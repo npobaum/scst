@@ -49,7 +49,6 @@ SCST_DIR=scst
 DOC_DIR=doc
 SCSTADM_DIR=scstadmin
 USR_DIR=usr
-SRP_DIR=srpt
 SCST_LOCAL_DIR=scst_local
 MVSAS_DIR=mvsas_tgt
 FCST_DIR=fcst
@@ -108,12 +107,6 @@ help:
 	@echo "		lsi_install       : lsi target: install"
 	@echo "		lsi_uninstall     : lsi target: uninstall"
 	@echo ""
-	@echo "		srpt              : make SRP target"
-	@echo "		srpt_clean        : srp target: clean "
-	@echo "		srpt_extraclean   : srp target: clean + clean dependencies"
-	@echo "		srpt_install      : srp target: install"
-	@echo "		srpt_uninstall    : srp target: uninstall"
-	@echo ""
 	@echo "		mvsas             : make MVSAS target"
 	@echo "		mvsas_clean       : mvsas target: clean "
 	@echo "		mvsas_extraclean  : mvsas target: clean + clean dependencies"
@@ -145,7 +138,7 @@ help:
 
 all install uninstall clean extraclean:
 	-if [ $@ = extraclean ]; then rm -f TAGS tags cscope.out; fi
-	-for d in $(SCST_DIR) $(ISCSI_DIR) $(QLA_DIR) $(SRP_DIR)	    \
+	-for d in $(SCST_DIR) $(ISCSI_DIR) $(QLA_DIR)    \
 		$(SCST_LOCAL_DIR) $(FCST_DIR) $(USR_DIR) $(SCSTADM_DIR); do \
 		$(MAKE) -j$$(nproc) -C "$$d" $@ || break;		    \
 	done
@@ -252,21 +245,6 @@ lsi_clean:
 lsi_extraclean:
 	cd $(LSI_DIR) && $(MAKE) extraclean
 
-srpt:
-	cd $(SRP_DIR) && $(MAKE) all
-
-srpt_install:
-	cd $(SRP_DIR) && $(MAKE) install
-
-srpt_uninstall:
-	cd $(SRP_DIR) && $(MAKE) uninstall
-
-srpt_clean:
-	cd $(SRP_DIR) && $(MAKE) clean
-
-srpt_extraclean:
-	cd $(SRP_DIR) && $(MAKE) extraclean
-
 scst_local:
 	cd $(SCST_LOCAL_DIR) && $(MAKE) all
 
@@ -349,7 +327,7 @@ make-scst-dist =							\
 	rm -rf "$${name}-$(3)"
 
 scst-dist-gzip:
-	$(call make-scst-dist,j,bz2,$(VERSION),grep -E '^doc/|^fcst/|^iscsi-scst/|^Makefile|^qla2x00t(|_git)/|^scripts/|^scst.spec|^scst/|^scst_local/|^srpt/|^usr/|^scstadmin/')
+	$(call make-scst-dist,j,bz2,$(VERSION),grep -E '^doc/|^fcst/|^iscsi-scst/|^Makefile|^qla2x00t(|_git)/|^scripts/|^scst.spec|^scst/|^scst_local/|^usr/|^scstadmin/')
 
 scst-rpm:
 	name=scst &&							\
@@ -477,7 +455,7 @@ release-archive:
 	scst scst_install scst_uninstall scst_clean scst_extraclean \
 	docs docs_clean docs_extraclean \
 	scstadm scstadm_install scstadm_uninstall scstadm_clean scstadm_extraclean \
-	srpt srpt_install srpt_uninstall srpt_clean srpt_extraclean \
+	srpt_uninstall srpt_clean srpt_extraclean \
 	usr usr_install usr_uninstall usr_clean usr_extraclean \
 	scst_local scst_local_install scst_local_uninstall scst_local_clean scst_local_extraclean \
 	mvsas mvsas_install mvsas_uninstall mvsas_clean mvsas_extraclean \
