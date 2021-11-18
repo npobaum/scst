@@ -22,7 +22,7 @@ export QLA_DIR=$(DEB_QLA_DIR_SET)
 export QLA_INI_DIR=$(DEB_QLA_INI_DIR_SET)
 export OFED_FLAVOR=$(DEB_OFED_FLAVOR_SET)
 
-SUBDIRS=scst $(shell grep -qw '^CONFIG_LIBFC' /boot/config-$(uname -r) && echo fcst) iscsi-scst $(QLA_DIR) scst_local scstadmin
+SUBDIRS=scst $(shell grep -qw '^CONFIG_LIBFC' /boot/config-$(uname -r) && echo fcst) iscsi-scst $(QLA_DIR) scst_local scstadmin srpt
 DESTDIR=$(CURDIR)/debian/tmp
 VERSION:=$(shell head -n1 debian/changelog | sed 's/.*(\([0-9.]*\).*).*/\1/')
 
@@ -44,7 +44,7 @@ build:
 	{								\
 		echo dkms.conf &&					\
 		echo Makefile &&					\
-		for d in fcst iscsi-scst $(QLA_INI_DIR) scst scst_local; do\
+		for d in fcst iscsi-scst $(QLA_INI_DIR) scst scst_local srpt; do\
 			echo $$d;					\
 		done;							\
 	} | sed "s,^,usr/src/scst-$(VERSION)/," >debian/scst-dkms.install
@@ -78,7 +78,7 @@ install:
 	cp debian/scst.dkms						\
 		$(DESTDIR)/usr/src/scst-$(VERSION)/dkms.conf &&		\
 	scripts/list-source-files |					\
-	grep -E '^Makefile$$|^(fcst|iscsi-scst|$(QLA_INI_DIR)|scst|scst_local)/'|\
+	grep -E '^Makefile$$|^(fcst|iscsi-scst|$(QLA_INI_DIR)|scst|scst_local|srpt)/'|\
 	tar -T- -cf- |							\
 	tar -C $(DESTDIR)/usr/src/scst-$(VERSION) -xf- &&		\
 	find $(DESTDIR) -type f -print0 | xargs -0 -r chmod 0644 &&	\
