@@ -54,7 +54,7 @@ all: progs mods
 ISER_SYMVERS:=$(SCST_DIR)/$(MODULE_SYMVERS) $(KMOD)/$(MODULE_SYMVERS)
 OFED_CFLAGS:=
 
-OFED_FLAVOR?=$(shell if [ -e /usr/bin/ofed_info ]; then /usr/bin/ofed_info 2>/dev/null | head -n1 | sed -n 's/^\(MLNX_OFED\|OFED-internal\).*/MOFED/p;s/^OFED-.*/OFED/p'; else echo in-tree; fi)
+OFED_FLAVOR=$(shell if [ -e /usr/bin/ofed_info ]; then /usr/bin/ofed_info 2>/dev/null | head -n1 | sed -n 's/^\(MLNX_OFED\|OFED-internal\).*/MOFED/p;s/^OFED-.*/OFED/p'; else echo in-tree; fi)
 
 ifeq ($(OFED_FLAVOR),MOFED)
 	ifeq ($(shell	if { dpkg -s mlnx-ofed-kernel-dkms || dpkg -s mlnx-ofed-kernel-modules; } >/dev/null 2>&1; then \

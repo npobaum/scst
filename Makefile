@@ -441,8 +441,7 @@ dpkg: ../scst_$(VERSION).orig.tar.gz
 	  buildopts+=(-j4);						\
 	fi &&								\
 	DEB_CC_SET="$(CC)" DEB_KVER_SET=$(KVER) DEB_KDIR_SET=$(KDIR) DEB_QLA_DIR_SET=$(QLA_DIR) \
-	   DEB_OFED_FLAVOR_SET=$(OFED_FLAVOR) DEB_QLA_INI_DIR_SET=$(QLA_INI_DIR) \
-		debuild "$${buildopts[@]}" --lintian-opts --profile debian && \
+	   DEB_QLA_INI_DIR_SET=$(QLA_INI_DIR) debuild "$${buildopts[@]}" --lintian-opts --profile debian && \
 	mkdir -p dpkg &&						\
 	for f in "$${output_files[@]}" ../scst_$(VERSION).orig.tar.[gx]z; do\
 		mv $$f dpkg || true;					\
