@@ -73,8 +73,8 @@
 #include "scst_dev_handler.h"
 
 /* 8 byte ASCII Vendor */
-#define SCST_FIO_VENDOR			"BAUM"
-#define SCST_BIO_VENDOR			"BAUM"
+#define SCST_FIO_VENDOR			"BSTRG"
+#define SCST_BIO_VENDOR			"BSTRG"
 /* 4 byte ASCII Product Revision Level - left aligned */
 #define SCST_FIO_REV			"340 "
 
